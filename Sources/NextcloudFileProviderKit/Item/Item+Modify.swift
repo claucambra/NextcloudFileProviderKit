@@ -51,9 +51,11 @@ public extension Item {
         // an item metadata the server URL is the parent folder's URL
         let dbManager = FilesDatabaseManager.shared
         if isFolder {
+            let namePathComponent = "/\(newFileName)"
+            let newServerUrl = String(newRemotePath.dropLast(namePathComponent.count))
             _ = dbManager.renameDirectoryAndPropagateToChildren(
                 ocId: ocId,
-                newServerUrl: newRemotePath,
+                newServerUrl: newServerUrl,
                 newFileName: newFileName
             )
         } else {
