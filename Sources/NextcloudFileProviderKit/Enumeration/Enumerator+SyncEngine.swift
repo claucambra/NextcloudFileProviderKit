@@ -395,10 +395,8 @@ extension Enumerator {
                         "Fetched directory etag is same as that stored locally. Not fetching child items."
                     let nkError = NKError(
                         errorCode: NKError.noChangesErrorCode, errorDescription: description)
-
-                    let metadatas = dbManager.itemMetadatas(
-                        account: ncKitAccount, serverUrl: serverUrl)
-
+                    let metadatas =
+                        dbManager.itemMetadatas(account: ncKitAccount, underServerUrl: serverUrl)
                     completionHandler(metadatas, nil, nil, nil, nkError.error)
                     return
                 }
