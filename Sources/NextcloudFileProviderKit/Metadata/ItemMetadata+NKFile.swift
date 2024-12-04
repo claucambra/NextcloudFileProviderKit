@@ -16,10 +16,10 @@ import Foundation
 import NextcloudKit
 
 public extension ItemMetadata {
-    static func fromNKFile(_ file: NKFile, account: String) -> ItemMetadata {
+    static func fromNKFile(_ file: NKFile, account: Account) -> ItemMetadata {
         let metadata = ItemMetadata()
 
-        metadata.account = account
+        metadata.account = account.ncKitAccount
         metadata.checksums = file.checksums
         metadata.commentsUnread = file.commentsUnread
         metadata.contentType = file.contentType
@@ -92,7 +92,7 @@ public extension ItemMetadata {
     // TODO: Convert to async/await
     static func metadatasFromDirectoryReadNKFiles(
         _ files: [NKFile],
-        account: String,
+        account: Account,
         completionHandler: @escaping (
             _ directoryMetadata: ItemMetadata,
             _ childDirectoriesMetadatas: [ItemMetadata],
