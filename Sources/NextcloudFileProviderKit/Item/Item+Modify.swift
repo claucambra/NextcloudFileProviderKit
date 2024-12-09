@@ -563,7 +563,7 @@ public extension Item {
                 Self.logger.error(
                     """
                     Received bad error or files from post-trashing remote scan:
-                    \(error, privacy: .public) \(files, privacy: .public)
+                    \(error.errorDescription, privacy: .public) \(files, privacy: .public)
                     """
                 )
                 let postTrashingItem = Item(
