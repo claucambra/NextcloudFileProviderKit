@@ -80,6 +80,9 @@ public extension ItemMetadata {
         } else {
             metadata.uploadDate = file.date as Date
         }
+        metadata.trashbinFileName = file.trashbinFileName
+        metadata.trashbinOriginalLocation = file.trashbinOriginalLocation
+        metadata.trashbinDeletionTime = file.trashbinDeletionTime
         metadata.urlBase = file.urlBase
         metadata.user = file.user
         metadata.userId = file.userId
