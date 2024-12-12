@@ -22,7 +22,7 @@ public extension Item {
     ) async -> (Item?, Error?) {
         let ocId = itemIdentifier.rawValue
         let isFolder = contentType.conforms(to: .directory)
-        let oldRemotePath = metadata.serverUrl + "/" + metadata.fileName
+        let oldRemotePath = metadata.serverUrl + "/" + filename
         let (_, _, moveError) = await remoteInterface.move(
             remotePathSource: oldRemotePath,
             remotePathDestination: newRemotePath,
@@ -507,6 +507,203 @@ public extension Item {
         )
     }
 
+    private static func trash(
+        _ modifiedItem: Item,
+        account: Account,
+        dbManager: FilesDatabaseManager,
+        domain: NSFileProviderDomain?
+    ) async -> (Item, Error?) {
+        let deleteError =
+            await modifiedItem.delete(trashing: true, domain: domain, dbManager: dbManager)
+        guard deleteError == nil else {
+            Self.logger.error(
+                """
+                Error attempting to move item into trash:
+                \(modifiedItem.filename, privacy: .public)
+                \(deleteError?.localizedDescription ?? "", privacy: .public)
+                """
+            )
+            return (modifiedItem, deleteError)
+        }
+
+        let ocId = modifiedItem.itemIdentifier.rawValue
+        guard let dirtyMetadata = dbManager.itemMetadataFromOcId(ocId) else {
+            Self.logger.error(
+                """
+                Could not correctly process trashing results, dirty metadata not found.
+                \(modifiedItem.filename, privacy: .public) \(ocId, privacy: .public)
+                """
+            )
+            return (modifiedItem, NSFileProviderError(.cannotSynchronize))
+        }
+
+        // The server may have renamed the trashed file so we need to scan the entire trash
+        let (_, files, _, error) = await modifiedItem.remoteInterface.enumerate(
+            remotePath: account.trashUrl,
+            depth: EnumerateDepth.targetAndAllChildren,
+            showHiddenFiles: true,
+            includeHiddenFiles: [],
+            requestBody: nil,
+            account: account,
+            options: .init(),
+            taskHandler: { task in
+                if let domain {
+                    NSFileProviderManager(for: domain)?.register(
+                        task,
+                        forItemWithIdentifier: modifiedItem.itemIdentifier,
+                        completionHandler: { _ in }
+                    )
+                }
+            }
+        )
+
+        guard error == .success,
+              let targetItemNKFile = files.first(where: { $0.ocId == modifiedItem.metadata.ocId })
+        else {
+            Self.logger.error(
+                """
+                Received bad error or files from post-trashing remote scan:
+                \(error.errorDescription, privacy: .public) \(files, privacy: .public)
+                """
+            )
+            return(Item(
+                metadata: dirtyMetadata,
+                parentItemIdentifier: .trashContainer,
+                account: account,
+                remoteInterface: modifiedItem.remoteInterface
+            ), error.fileProviderError)
+        }
+
+        let postDeleteMetadata = targetItemNKFile.toItemMetadata()
+        dbManager.addItemMetadata(postDeleteMetadata)
+
+        let postDeleteItem = Item(
+            metadata: postDeleteMetadata,
+            parentItemIdentifier: .trashContainer,
+            account: account,
+            remoteInterface: modifiedItem.remoteInterface
+        )
+
+        // Now we can directly update info on the child items
+        var (_, childFiles, _, childError) = await modifiedItem.remoteInterface.enumerate(
+            remotePath: account.trashUrl,
+            depth: EnumerateDepth.targetAndAllChildren, // Just do it in one go
+            showHiddenFiles: true,
+            includeHiddenFiles: [],
+            requestBody: nil,
+            account: account,
+            options: .init(),
+            taskHandler: { task in
+                if let domain {
+                    NSFileProviderManager(for: domain)?.register(
+                        task,
+                        forItemWithIdentifier: modifiedItem.itemIdentifier,
+                        completionHandler: { _ in }
+                    )
+                }
+            }
+        )
+
+        guard error == .success else {
+            Self.logger.error(
+                """
+                Received bad error or files from post-trashing child items remote scan:
+                \(error.errorDescription, privacy: .public) \(files, privacy: .public)
+                """
+            )
+            return (postDeleteItem, childError.fileProviderError)
+        }
+
+        // Update state of child files
+        childFiles.removeFirst() // This is the target path, already scanned
+        for file in childFiles {
+            let metadata = file.toItemMetadata()
+            dbManager.addItemMetadata(metadata)
+        }
+
+        return (postDeleteItem, nil)
+    }
+
+    private static func restoreFromTrash(
+        _ modifiedItem: Item,
+        account: Account,
+        dbManager: FilesDatabaseManager,
+        domain: NSFileProviderDomain?
+    ) async -> (Item, Error?) {
+        let (_, _, restoreError) = await modifiedItem.remoteInterface.restoreFromTrash(
+            filename: modifiedItem.filename,
+            account: account,
+            options: .init(),
+            taskHandler: { _ in }
+        )
+        guard restoreError == .success else {
+            Self.logger.error(
+                """
+                Could not restore item \(modifiedItem.filename, privacy: .public) from trash
+                Received error: \(restoreError.errorDescription, privacy: .public)
+                """
+            )
+            return (modifiedItem, restoreError.fileProviderError)
+        }
+        guard modifiedItem.metadata.trashbinOriginalLocation != "" else {
+            Self.logger.error(
+                """
+                Could not scan restored item \(modifiedItem.filename, privacy: .public).
+                The trashed file's original location is invalid.
+                """
+            ) // TODO: Be more permissive of this and just rescan remote state
+            return (modifiedItem, NSFileProviderError(.cannotSynchronize))
+        }
+        let originalLocation =
+            account.davFilesUrl + "/" + modifiedItem.metadata.trashbinOriginalLocation
+
+        let (_, files, _, enumerateError) = await modifiedItem.remoteInterface.enumerate(
+            remotePath: originalLocation,
+            depth: .target,
+            showHiddenFiles: true,
+            includeHiddenFiles: [],
+            requestBody: nil,
+            account: account,
+            options: .init(),
+            taskHandler: { _ in }
+        )
+        guard enumerateError == .success, !files.isEmpty, let target = files.first else {
+            Self.logger.error(
+                """
+                Could not scan restored state of file \(originalLocation, privacy: .public)
+                Received error: \(enumerateError.errorDescription, privacy: .public)
+                Files: \(files.count, privacy: .public)
+                """ // TODO: Be more permissive of this and just rescan remote state
+            )
+            return (modifiedItem, enumerateError.fileProviderError)
+        }
+
+        guard target.ocId == modifiedItem.itemIdentifier.rawValue else {
+            Self.logger.error(
+                """
+                Restored item \(originalLocation, privacy: .public)
+                does not match \(modifiedItem.filename, privacy: .public)
+                (it is likely that when restoring from the trash, there was another identical item).
+                """
+            ) // TODO: Be more permissive of this and just rescan remote state
+            return (modifiedItem, NSFileProviderError(.cannotSynchronize))
+        }
+
+        let restoredItemMetadata = target.toItemMetadata()
+        guard let parentItemIdentifier = dbManager.parentItemIdentifierFromMetadata(
+            restoredItemMetadata
+        ) else {
+            Self.logger.error("Could not find parent item identifier for \(originalLocation)")
+            return (modifiedItem, NSFileProviderError(.cannotSynchronize))
+        }
+        return (Item(
+            metadata: restoredItemMetadata,
+            parentItemIdentifier: parentItemIdentifier,
+            account: account,
+            remoteInterface: modifiedItem.remoteInterface
+        ), nil)
+    }
+
     func modify(
         itemTarget: NSFileProviderItem,
         baseVersion: NSFileProviderItemVersion = NSFileProviderItemVersion(),
@@ -518,8 +715,10 @@ public extension Item {
         progress: Progress = .init(),
         dbManager: FilesDatabaseManager = .shared
     ) async -> (Item?, Error?) {
-        let ocId = itemIdentifier.rawValue
-        guard itemTarget.itemIdentifier == itemIdentifier else {
+        var modifiedItem = self
+
+        let ocId = modifiedItem.itemIdentifier.rawValue
+        guard itemTarget.itemIdentifier == modifiedItem.itemIdentifier else {
             Self.logger.error(
                 """
                 Could not modify item: \(ocId, privacy: .public), different identifier to the
@@ -531,9 +730,10 @@ public extension Item {
         }
 
         let parentItemIdentifier = itemTarget.parentItemIdentifier
-        let isFolder = contentType.conforms(to: .directory)
+        let isFolder = modifiedItem.contentType.conforms(to: .directory)
         let bundleOrPackage =
-            contentType.conforms(to: .bundle) || contentType.conforms(to: .package)
+            modifiedItem.contentType.conforms(to: .bundle) ||
+            modifiedItem.contentType.conforms(to: .package)
 
         if options.contains(.mayAlreadyExist) {
             // TODO: This needs to be properly handled with a check in the db
@@ -549,6 +749,8 @@ public extension Item {
         // That is, if the parent item has changed at all (it might not have)
         if parentItemIdentifier == .rootContainer {
             parentItemServerUrl = account.davFilesUrl
+        } else if parentItemIdentifier == .trashContainer {
+            parentItemServerUrl = account.trashUrl
         } else {
             guard let parentItemMetadata = dbManager.directoryMetadata(
                 ocId: parentItemIdentifier.rawValue
@@ -571,62 +773,87 @@ public extension Item {
         Self.logger.debug(
             """
             About to modify item with identifier: \(ocId, privacy: .public)
-            of type: \(self.contentType.identifier)
+            of type: \(modifiedItem.contentType.identifier)
             (is folder: \(isFolder ? "yes" : "no", privacy: .public)
-            and filename: \(itemTarget.filename, privacy: .public)
-            from old server url: \(self.metadata.serverUrl + "/" + self.filename, privacy: .public)
+            with filename: \(modifiedItem.filename, privacy: .public)
+            to filename: \(itemTarget.filename, privacy: .public)
+            from old server url:
+                \(modifiedItem.metadata.serverUrl + "/" + modifiedItem.filename, privacy: .public)
             to server url: \(newServerUrlFileName, privacy: .public)
+            old parent identifier: \(modifiedItem.parentItemIdentifier.rawValue, privacy: .public)
+            new parent identifier: \(itemTarget.parentItemIdentifier.rawValue, privacy: .public)
             with contents located at: \(newContents?.path ?? "", privacy: .public)
             """
         )
 
-        var modifiedItem = self
-
-        if changedFields.contains(.filename) || changedFields.contains(.parentItemIdentifier) {
-            Self.logger.debug(
-                """
-                Changed fields for item \(ocId, privacy: .public)
-                with filename \(self.filename, privacy: .public)
-                includes filename or parentitemidentifier.
-                old filename: \(self.filename, privacy: .public)
-                new filename: \(itemTarget.filename, privacy: .public)
-                old parent identifier: \(self.parentItemIdentifier.rawValue, privacy: .public)
-                new parent identifier: \(itemTarget.parentItemIdentifier.rawValue, privacy: .public)
-                """
-            )
-
-            let (renameModifiedItem, renameError) = await modifiedItem.move(
-                newFileName: itemTarget.filename,
-                newRemotePath: newServerUrlFileName,
-                newParentItemIdentifier: parentItemIdentifier,
-                newParentItemRemotePath: parentItemServerUrl,
-                dbManager: dbManager
-            )
-
-            guard renameError == nil, let renameModifiedItem else {
-                Self.logger.error(
-                    """
-                    Could not rename item with ocID \(ocId, privacy: .public)
-                    (\(self.filename, privacy: .public)) to
-                    \(newServerUrlFileName, privacy: .public),
-                    received error: \(renameError?.localizedDescription ?? "", privacy: .public)
-                    """
+        if (changedFields.contains(.parentItemIdentifier) && parentItemIdentifier == .trashContainer) {
+            // We can't just move files into the trash, we need to issue a deletion; let's handle it
+            // Rename the item if necessary before doing the trashing procedures
+            if (changedFields.contains(.filename)) {
+                let currentParentItemRemotePath = modifiedItem.metadata.serverUrl
+                let preTrashingRenamedRemotePath =
+                    currentParentItemRemotePath + "/" + itemTarget.filename
+                let (renameModifiedItem, renameError) = await modifiedItem.move(
+                    newFileName: itemTarget.filename,
+                    newRemotePath: preTrashingRenamedRemotePath,
+                    newParentItemIdentifier: modifiedItem.parentItemIdentifier,
+                    newParentItemRemotePath: currentParentItemRemotePath,
+                    dbManager: dbManager
                 )
-                return (nil, renameError)
+
+                guard renameError == nil, let renameModifiedItem else {
+                    Self.logger.error(
+                        """
+                        Could not rename pre-trash item with ocID \(ocId, privacy: .public)
+                        (\(modifiedItem.filename, privacy: .public)) to
+                        \(newServerUrlFileName, privacy: .public),
+                        received error: \(renameError?.localizedDescription ?? "", privacy: .public)
+                        """
+                    )
+                    return (nil, renameError)
+                }
+
+                modifiedItem = renameModifiedItem
             }
 
-            modifiedItem = renameModifiedItem
-
-            guard !isFolder || bundleOrPackage else {
-                Self.logger.debug(
-                    """
-                    Rename of folder \(ocId, privacy: .public) (\(self.filename, privacy: .public))
-                    to \(itemTarget.filename, privacy: .public)
-                    at \(newServerUrlFileName, privacy: .public)
-                    complete. Only handling renaming for folder and no other procedures.
-                    """
+            let (trashedItem, trashingError) = await Self.trash(
+                modifiedItem, account: account, dbManager: dbManager, domain: domain
+            )
+            guard trashingError == nil else { return (modifiedItem, trashingError) }
+            modifiedItem = trashedItem
+        } else if changedFields.contains(.filename) || changedFields.contains(.parentItemIdentifier) {
+            // Recover the item first
+            if modifiedItem.parentItemIdentifier != itemTarget.parentItemIdentifier &&
+                modifiedItem.parentItemIdentifier == .trashContainer &&
+                modifiedItem.metadata.isTrashed
+            {
+                let (restoredItem, restoreError) = await Self.restoreFromTrash(
+                    modifiedItem, account: account, dbManager: dbManager, domain: domain
                 )
-                return (modifiedItem, nil)
+                guard restoreError == nil else {
+                    return (modifiedItem, restoreError)
+                }
+                modifiedItem = restoredItem
+            }
+
+            // Maybe during the untrashing the item's intended modifications were complete.
+            // If not the case, or the item modification does not involve untrashing, move/rename.
+            if modifiedItem.filename != itemTarget.filename ||
+               modifiedItem.parentItemIdentifier != itemTarget.parentItemIdentifier
+            {
+                let (renameModifiedItem, renameError) = await modifiedItem.move(
+                    newFileName: itemTarget.filename,
+                    newRemotePath: newServerUrlFileName,
+                    newParentItemIdentifier: parentItemIdentifier,
+                    newParentItemRemotePath: parentItemServerUrl,
+                    dbManager: dbManager
+                )
+
+                guard renameError == nil, let renameModifiedItem else {
+                    return (nil, renameError)
+                }
+
+                modifiedItem = renameModifiedItem
             }
         }
 

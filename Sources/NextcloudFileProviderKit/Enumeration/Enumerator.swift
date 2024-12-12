@@ -142,10 +142,40 @@ public class Enumerator: NSObject, NSFileProviderEnumerator {
                 with serverUrl: \(self.serverUrl, privacy: .public)
                 """
             )
-            // TODO!
 
-            listener?.enumerationActionFinished(actionId: actionId)
-            observer.finishEnumerating(upTo: nil)
+            Task {
+                let (_, trashedItems, _, trashReadError) = await remoteInterface.trashedItems(
+                    account: account,
+                    options: .init(),
+                    taskHandler: { task in
+                        if let domain = self.domain {
+                            NSFileProviderManager(for: domain)?.register(
+                                task,
+                                forItemWithIdentifier: self.enumeratedItemIdentifier,
+                                completionHandler: { _ in }
+                            )
+                        }
+                    }
+                )
+
+                guard trashReadError == .success else {
+                    let error =
+                        trashReadError.fileProviderError ?? NSFileProviderError(.cannotSynchronize)
+                    listener?.enumerationActionFailed(actionId: actionId, error: error)
+                    observer.finishEnumeratingWithError(error)
+                    return
+                }
+
+                Self.completeEnumerationObserver(
+                    observer,
+                    account: account,
+                    remoteInterface: remoteInterface,
+                    dbManager: dbManager,
+                    numPage: 1,
+                    trashItems: trashedItems
+                )
+                listener?.enumerationActionFinished(actionId: actionId)
+            }
             return
         }
 
@@ -351,10 +381,40 @@ public class Enumerator: NSObject, NSFileProviderEnumerator {
             Self.logger.debug(
                 "Enumerating changes in trash set for: \(self.account.ncKitAccount, privacy: .public)"
             )
-            // TODO!
 
-            listener?.enumerationActionFinished(actionId: actionId)
-            observer.finishEnumeratingChanges(upTo: anchor, moreComing: false)
+            Task {
+                let (_, trashedItems, _, trashReadError) = await remoteInterface.trashedItems(
+                    account: account,
+                    options: .init(),
+                    taskHandler: { task in
+                        if let domain = self.domain {
+                            NSFileProviderManager(for: domain)?.register(
+                                task,
+                                forItemWithIdentifier: self.enumeratedItemIdentifier,
+                                completionHandler: { _ in }
+                            )
+                        }
+                    }
+                )
+
+                guard trashReadError == .success else {
+                    let error =
+                        trashReadError.fileProviderError ?? NSFileProviderError(.cannotSynchronize)
+                    listener?.enumerationActionFailed(actionId: actionId, error: error)
+                    observer.finishEnumeratingWithError(error)
+                    return
+                }
+
+                Self.completeChangesObserver(
+                    observer,
+                    anchor: anchor,
+                    account: account,
+                    remoteInterface: remoteInterface,
+                    dbManager: dbManager,
+                    trashItems: trashedItems
+                )
+                listener?.enumerationActionFinished(actionId: actionId)
+            }
             return
         }
 
@@ -492,7 +552,7 @@ public class Enumerator: NSObject, NSFileProviderEnumerator {
     // MARK: - Helper methods
 
     // TODO: Use async group
-    private static func metadatasToFileProviderItems(
+    static func metadatasToFileProviderItems(
         _ itemMetadatas: [ItemMetadata],
         account: Account,
         remoteInterface: RemoteInterface,
@@ -557,7 +617,7 @@ public class Enumerator: NSObject, NSFileProviderEnumerator {
         }
     }
 
-    private static func fileProviderPageforNumPage(_ numPage: Int) -> NSFileProviderPage {
+    static func fileProviderPageforNumPage(_ numPage: Int) -> NSFileProviderPage {
         NSFileProviderPage("\(numPage)".data(using: .utf8)!)
     }
 
