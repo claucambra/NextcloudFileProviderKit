@@ -88,9 +88,17 @@ public class MaterialisedEnumerationObserver: NSObject, NSFileProviderEnumeratio
                 Self.logger.info("Cleaning up local file metadatas for unmaterialised items")
                 for itemId in noLongerMaterialisedIds {
                     guard let itemMetadata = dbManager.itemMetadata(ocId: itemId) else { continue }
-
-                    itemMetadata.downloaded = false
-                    dbManager.addItemMetadata(itemMetadata)
+                    let database = dbManager.ncDatabase()
+                    do {
+                        try database.write { itemMetadata.downloaded = false }
+                    } catch let error {
+                        Self.logger.error(
+                            """
+                            Error updating downloaded status for \(itemId, privacy: .public)
+                                received error: \(error.localizedDescription)
+                            """
+                        )
+                    }
                 }
 
                 completionHandler(noLongerMaterialisedIds)

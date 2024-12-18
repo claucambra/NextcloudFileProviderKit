@@ -143,10 +143,10 @@ public class FilesDatabaseManager {
         itemMetadatas.filter("account == %@", account)
     }
 
-    public func itemMetadatas(account: String, underServerUrl serverUrl: String) -> [ItemMetadata] {
-        itemMetadatas
-            .filter("account == %@ AND serverUrl BEGINSWITH %@", account, serverUrl)
-            .toUnmanagedResults()
+    public func itemMetadatas(
+        account: String, underServerUrl serverUrl: String
+    ) -> Results<ItemMetadata> {
+        itemMetadatas.filter("account == %@ AND serverUrl BEGINSWITH %@", account, serverUrl)
     }
 
     public func itemMetadataFromFileProviderItemIdentifier(
