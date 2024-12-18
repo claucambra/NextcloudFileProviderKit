@@ -285,13 +285,7 @@ extension Enumerator {
         )
 
 
-        let (directoryMetadata, metadatas) = await withCheckedContinuation { continuation in
-            ItemMetadata.metadatasFromDirectoryReadNKFiles(
-                files, account: account
-            ) { directoryMetadata, _, metadatas in
-                continuation.resume(returning: (directoryMetadata, metadatas))
-            }
-        }
+        let (directoryMetadata, _, metadatas) = files.toDirectoryReadMetadatas(account: account)
 
         // STORE DATA FOR CURRENTLY SCANNED DIRECTORY
         // We have now scanned this directory's contents, so update with etag in order to not check 
