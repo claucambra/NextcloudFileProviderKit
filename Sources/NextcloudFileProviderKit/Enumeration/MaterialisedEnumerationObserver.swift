@@ -77,7 +77,6 @@ public class MaterialisedEnumerationObserver: NSObject, NSFileProviderEnumeratio
         DispatchQueue.global(qos: .background).async {
             for localFile in databaseLocalFileMetadatas {
                 let localFileOcId = localFile.ocId
-
                 guard itemIds.contains(localFileOcId) else {
                     noLongerMaterialisedIds.insert(localFileOcId)
                     continue
