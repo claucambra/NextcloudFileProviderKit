@@ -127,9 +127,9 @@ extension FilesDatabaseManager {
         return deletedMetadatas
     }
 
-    public func renameDirectoryAndPropagateToChildren(
+    @discardableResult public func renameDirectoryAndPropagateToChildren(
         ocId: String, newServerUrl: String, newFileName: String
-    ) -> [ItemMetadata]? {
+    ) -> Results<ItemMetadata>? {
         guard
             let directoryMetadata = itemMetadatas.filter(
                 "ocId == %@ AND directory == true", ocId
@@ -190,12 +190,10 @@ extension FilesDatabaseManager {
             return nil
         }
 
-        return itemMetadatas
-            .filter(
-                "account == %@ AND serverUrl BEGINSWITH %@",
-                directoryMetadata.account,
-                newDirectoryServerUrl
-            )
-            .toUnmanagedResults()
+        return itemMetadatas.filter(
+            "account == %@ AND serverUrl BEGINSWITH %@",
+            directoryMetadata.account,
+            newDirectoryServerUrl
+        )
     }
 }

@@ -57,7 +57,7 @@ public extension Item {
         }
 
         if isFolder {
-            _ = dbManager.renameDirectoryAndPropagateToChildren(
+            dbManager.renameDirectoryAndPropagateToChildren(
                 ocId: ocId,
                 newServerUrl: newParentItemRemotePath,
                 newFileName: newFileName
