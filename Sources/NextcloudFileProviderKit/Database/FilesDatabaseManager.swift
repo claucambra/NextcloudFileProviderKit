@@ -139,8 +139,8 @@ public class FilesDatabaseManager {
         return nil
     }
 
-    public func itemMetadatas(account: String) -> [ItemMetadata] {
-        itemMetadatas.filter("account == %@", account).toUnmanagedResults()
+    public func itemMetadatas(account: String) -> Results<ItemMetadata> {
+        itemMetadatas.filter("account == %@", account)
     }
 
     public func itemMetadatas(account: String, underServerUrl serverUrl: String) -> [ItemMetadata] {
