@@ -59,11 +59,13 @@ public class MaterialisedEnumerationObserver: NSObject, NSFileProviderEnumeratio
     }
 
     static func handleEnumeratedItems(
-        _ itemIds: Set<String>, account: String,
+        _ itemIds: Set<String>,
+        account: String,
         completionHandler: @escaping (_ deletedOcIds: Set<String>) -> Void
     ) {
         let dbManager = FilesDatabaseManager.shared
-        let databaseLocalFileMetadatas = dbManager.itemMetadatas(account: account)
+        let databaseLocalFileMetadatas =
+            dbManager.itemMetadatas(account: account).filter { $0.downloaded }
         var noLongerMaterialisedIds = Set<String>()
 
         DispatchQueue.global(qos: .background).async {
