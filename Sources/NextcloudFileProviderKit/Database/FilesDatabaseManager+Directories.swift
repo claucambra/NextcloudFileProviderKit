@@ -37,11 +37,7 @@ extension FilesDatabaseManager {
     }
 
     public func directoryMetadata(ocId: String) -> ItemMetadata? {
-        if let metadata = itemMetadatas.filter("ocId == %@ AND directory == true", ocId).first {
-            return ItemMetadata(value: metadata)
-        }
-
-        return nil
+        itemMetadatas.filter("ocId == %@ AND directory == true", ocId).first
     }
 
     // Deletes all metadatas related to the info of the directory provided
