@@ -226,7 +226,7 @@ public class Item: NSObject, NSFileProviderItem {
         account: Account,
         remoteInterface: RemoteInterface
     ) {
-        self.metadata = ItemMetadata(value: metadata) // Safeguard against active items
+        self.metadata = metadata
         self.parentItemIdentifier = parentItemIdentifier
         self.account = account
         self.remoteInterface = remoteInterface
