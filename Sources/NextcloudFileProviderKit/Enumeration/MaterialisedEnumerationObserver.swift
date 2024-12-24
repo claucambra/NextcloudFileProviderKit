@@ -70,12 +70,9 @@ public class MaterialisedEnumerationObserver: NSObject, NSFileProviderEnumeratio
         dbManager: FilesDatabaseManager,
         completionHandler: @escaping (_ deletedOcIds: Set<String>) -> Void
     ) {
-        let databaseLocalFileMetadatas =
-            dbManager.itemMetadatas(account: account).filter { $0.downloaded }
-        var noLongerMaterialisedIds = Set<String>()
-
         DispatchQueue.global(qos: .background).async {
-            for localFile in databaseLocalFileMetadatas {
+            var noLongerMaterialisedIds = Set<String>()
+            for localFile in dbManager.itemMetadatas(account: account).filter({ $0.downloaded }) {
                 let localFileOcId = localFile.ocId
                 guard itemIds.contains(localFileOcId) else {
                     noLongerMaterialisedIds.insert(localFileOcId)
