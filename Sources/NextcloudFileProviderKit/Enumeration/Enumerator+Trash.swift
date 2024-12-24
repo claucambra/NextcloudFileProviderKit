@@ -49,13 +49,17 @@ extension Enumerator {
 
         // NKTrash items do not have an etag ; we assume they cannot be modified while they are in
         // the trash, so we will just check by ocId
-        var existingTrashedItems = dbManager.trashedItemMetadatas(account: account)
+        var deletedTrashedItemsIdentifiers = Array(
+            dbManager
+                .trashedItemMetadatas(account: account)
+                .map { NSFileProviderItemIdentifier($0.ocId) }
+        )
 
         for trashItem in trashItems {
-            if let existingTrashItemIndex = existingTrashedItems.firstIndex(
-                where: { $0.ocId == trashItem.ocId }
+            if let existingTrashItemIndex = deletedTrashedItemsIdentifiers.firstIndex(
+                where: { $0.rawValue == trashItem.ocId }
             ) {
-                existingTrashedItems.remove(at: existingTrashItemIndex)
+                deletedTrashedItemsIdentifiers.remove(at: existingTrashItemIndex)
                 continue
             }
 
@@ -78,9 +82,6 @@ extension Enumerator {
             )
         }
 
-        let deletedTrashedItemsIdentifiers = existingTrashedItems.map {
-            NSFileProviderItemIdentifier($0.ocId)
-        }
         if !deletedTrashedItemsIdentifiers.isEmpty {
             for itemIdentifier in deletedTrashedItemsIdentifiers {
                 dbManager.deleteItemMetadata(ocId: itemIdentifier.rawValue)

@@ -5,8 +5,10 @@
 //  Created by Claudio Cambra on 2024-12-02.
 //
 
+import RealmSwift
+
 extension FilesDatabaseManager {
-    func trashedItemMetadatas(account: Account) -> [ItemMetadata] {
+    func trashedItemMetadatas(account: Account) -> Results<ItemMetadata> {
         ncDatabase()
             .objects(ItemMetadata.self)
             .filter(
@@ -14,6 +16,5 @@ extension FilesDatabaseManager {
                 account.ncKitAccount,
                 account.trashUrl
             )
-            .toUnmanagedResults()
     }
 }
