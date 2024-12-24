@@ -110,27 +110,15 @@ public extension Item {
             return (nil, NSFileProviderError(.noSuchItem))
         }
 
-        guard let metadata = dbManager.itemMetadata(ocId: ocId) else {
+        guard let managedMetadata = dbManager.itemMetadata(ocId: ocId),
+              let db = managedMetadata.realm
+        else {
             Self.logger.error(
                 "Could not acquire metadata of item with identifier: \(ocId, privacy: .public)"
             )
             return (nil, NSFileProviderError(.noSuchItem))
         }
-
-        let updatedMetadata = await withCheckedContinuation { continuation in
-            dbManager.setStatusForItemMetadata(
-                metadata, status: ItemMetadata.Status.uploading
-            ) { continuation.resume(returning: $0) }
-        }
-
-        if updatedMetadata == nil {
-            Self.logger.warning(
-                """
-                Could not acquire updated metadata of item: \(ocId, privacy: .public),
-                unable to update item status to uploading
-                """
-            )
-        }
+        dbManager.applyStatus(on: managedMetadata, status: ItemMetadata.Status.uploading)
 
         let (_, _, etag, date, size, _, _, error) = await remoteInterface.upload(
             remotePath: remotePath,
@@ -162,9 +150,19 @@ public extension Item {
                 """
             )
 
-            metadata.status = ItemMetadata.Status.uploadError.rawValue
-            metadata.sessionError = error.errorDescription
-            dbManager.addItemMetadata(metadata)
+            do {
+                try db.write {
+                    managedMetadata.status = ItemMetadata.Status.uploadError.rawValue
+                    managedMetadata.sessionError = error.errorDescription
+                }
+            } catch let error {
+                Self.logger.error(
+                    """
+                    Could not set upload error state on item:
+                        \(error.localizedDescription, privacy: .public)
+                    """
+                )
+            }
             return (nil, error.fileProviderError)
         }
 
@@ -188,15 +186,15 @@ public extension Item {
 
         let newMetadata = ItemMetadata()
         newMetadata.date = (date ?? NSDate()) as Date
-        newMetadata.etag = etag ?? metadata.etag
-        newMetadata.account = metadata.account
-        newMetadata.fileName = metadata.fileName
-        newMetadata.fileNameView = metadata.fileNameView
+        newMetadata.etag = etag ?? managedMetadata.etag
+        newMetadata.account = managedMetadata.account
+        newMetadata.fileName = managedMetadata.fileName
+        newMetadata.fileNameView = managedMetadata.fileNameView
         newMetadata.ocId = ocId
         newMetadata.size = size
-        newMetadata.contentType = metadata.contentType
-        newMetadata.directory = metadata.directory
-        newMetadata.serverUrl = metadata.serverUrl
+        newMetadata.contentType = managedMetadata.contentType
+        newMetadata.directory = managedMetadata.directory
+        newMetadata.serverUrl = managedMetadata.serverUrl
         newMetadata.session = ""
         newMetadata.sessionError = ""
         newMetadata.sessionTaskIdentifier = 0

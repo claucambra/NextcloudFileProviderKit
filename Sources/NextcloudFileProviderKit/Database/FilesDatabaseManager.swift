@@ -306,30 +306,23 @@ public class FilesDatabaseManager {
     }
 
     // If setting a downloading or uploading status, also modified the relevant boolean properties
-    // of the item metadata object
-    public func setStatusForItemMetadata(
-        _ metadata: ItemMetadata,
-        status: ItemMetadata.Status,
-        completionHandler: @escaping (_ updatedMetadata: ItemMetadata?) -> Void
-    ) {
-        guard let result = itemMetadatas.filter("ocId == %@", metadata.ocId).first else {
-            Self.logger.debug(
-                """
-                Did not update status for item metadata as it was not found.
-                    ocID: \(metadata.ocId, privacy: .public)
-                """
+    // of the item metadata object.
+    // NOTE: Expects a managed item metadata object!
+    public func applyStatus(on metadata: ItemMetadata, status: ItemMetadata.Status) {
+        guard let db = metadata.realm else {
+            Self.logger.error(
+                "Received item is not managed! Cannot apply status. \(metadata, privacy: .public)"
             )
             return
         }
-        
+
         do {
-            let database = ncDatabase()
-            try database.write {
-                result.status = status.rawValue
-                if result.isDownload {
-                    result.downloaded = false
-                } else if result.isUpload {
-                    result.uploaded = false
+            try db.write {
+                metadata.status = status.rawValue
+                if metadata.isDownload {
+                    metadata.downloaded = false
+                } else if metadata.isUpload {
+                    metadata.uploaded = false
                 }
 
                 Self.logger.debug(
@@ -340,8 +333,6 @@ public class FilesDatabaseManager {
                         fileName: \(metadata.fileName, privacy: .public)
                     """
                 )
-
-                completionHandler(ItemMetadata(value: result))
             }
         } catch {
             Self.logger.error(
@@ -353,7 +344,6 @@ public class FilesDatabaseManager {
                     received error: \(error.localizedDescription, privacy: .public)
                 """
             )
-            completionHandler(nil)
         }
     }
 
