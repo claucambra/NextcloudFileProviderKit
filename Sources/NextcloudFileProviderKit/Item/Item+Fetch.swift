@@ -131,19 +131,15 @@ public extension Item {
 
         Self.logger.debug(
             """
-            Fetching item with name \(self.metadata.fileName, privacy: .public)
+            Fetching item with name \(self.filename, privacy: .public)
             at URL: \(serverUrlFileName, privacy: .public)
             """
         )
 
         let localPath = FileManager.default.temporaryDirectory.appendingPathComponent(metadata.ocId)
-        let updatedMetadata = await withCheckedContinuation { continuation in
-            dbManager.setStatusForItemMetadata(metadata, status: .downloading) { updatedMeta in
-                continuation.resume(returning: updatedMeta)
-            }
-        }
-
-        guard let updatedMetadata else {
+        guard let managedMetadata = dbManager.itemMetadata(ocId: ocId),
+              let db = managedMetadata.realm
+        else {
             Self.logger.error(
                 """
                 Could not acquire updated metadata of item \(ocId, privacy: .public),
@@ -152,13 +148,29 @@ public extension Item {
             )
             return (nil, nil, NSFileProviderError(.noSuchItem))
         }
+        dbManager.applyStatus(on: managedMetadata, status: .downloading)
 
-        let isDirectory = contentType.conforms(to: .directory)
-        if isDirectory {
+        func finaliseDownloadErrorState(message: String) {
+            do {
+                try db.write {
+                    managedMetadata.status = ItemMetadata.Status.downloadError.rawValue
+                    managedMetadata.sessionError = message
+                }
+            } catch let error {
+                Self.logger.error(
+                    """
+                    Could not set download error status on item.
+                        \(error.localizedDescription, privacy: .public)
+                    """
+                )
+            }
+        }
+
+        if contentType.conforms(to: .directory) {
             Self.logger.debug(
                 """
                 Item with identifier: \(ocId, privacy: .public)
-                and filename: \(updatedMetadata.fileName, privacy: .public)
+                and filename: \(self.filename, privacy: .public)
                 is a directory, creating dir locally and fetching its contents
                 """
             )
@@ -173,15 +185,13 @@ public extension Item {
                 Self.logger.error(
                     """
                     Could not create directory for item with identifier: \(ocId, privacy: .public)
-                    and fileName: \(updatedMetadata.fileName, privacy: .public)
+                    and fileName: \(self.filename, privacy: .public)
                     at \(localPath, privacy: .public)
                     error: \(error.localizedDescription, privacy: .public)
                     """
                 )
 
-                updatedMetadata.status = ItemMetadata.Status.downloadError.rawValue
-                updatedMetadata.sessionError = error.localizedDescription
-                dbManager.addItemMetadata(updatedMetadata)
+                finaliseDownloadErrorState(message: error.localizedDescription)
                 return (nil, nil, error)
             }
 
@@ -196,15 +206,13 @@ public extension Item {
                 Self.logger.error(
                     """
                     Could not fetch directory contents for \(ocId, privacy: .public)
-                    and fileName: \(updatedMetadata.fileName, privacy: .public)
+                    and fileName: \(self.filename, privacy: .public)
                     at \(serverUrlFileName, privacy: .public)
                     error: \(error.localizedDescription, privacy: .public)
                     """
                 )
 
-                updatedMetadata.status = ItemMetadata.Status.downloadError.rawValue
-                updatedMetadata.sessionError = error.localizedDescription
-                dbManager.addItemMetadata(updatedMetadata)
+                finaliseDownloadErrorState(message: error.localizedDescription)
                 return (nil, nil, error)
             }
 
@@ -223,16 +231,14 @@ public extension Item {
                 Self.logger.error(
                     """
                     Could not acquire contents of item with identifier: \(ocId, privacy: .public)
-                    and fileName: \(updatedMetadata.fileName, privacy: .public)
+                    and fileName: \(self.filename, privacy: .public)
                     at \(serverUrlFileName, privacy: .public)
                     error: \(error.errorCode, privacy: .public)
                     \(error.errorDescription, privacy: .public)
                     """
                 )
 
-                updatedMetadata.status = ItemMetadata.Status.downloadError.rawValue
-                updatedMetadata.sessionError = error.errorDescription
-                dbManager.addItemMetadata(updatedMetadata)
+                finaliseDownloadErrorState(message: error.errorDescription)
                 return (nil, nil, error.fileProviderError)
             }
         }
@@ -240,18 +246,29 @@ public extension Item {
         Self.logger.debug(
             """
             Acquired contents of item with identifier: \(ocId, privacy: .public)
-            and filename: \(updatedMetadata.fileName, privacy: .public)
+            and filename: \(self.filename, privacy: .public)
             """
         )
 
-        updatedMetadata.status = ItemMetadata.Status.normal.rawValue
-        updatedMetadata.downloaded = true
-        updatedMetadata.sessionError = ""
-
-        dbManager.addItemMetadata(updatedMetadata)
+        do {
+            try db.write {
+                managedMetadata.status = ItemMetadata.Status.normal.rawValue
+                managedMetadata.downloaded = true
+                managedMetadata.sessionError = ""
+            }
+        } catch let error {
+            Self.logger.error(
+                """
+                Could not set successful download state on item.
+                    ocId: \(ocId, privacy: .public)
+                    filename: \(self.filename, privacy: .public)
+                    error: \(error.localizedDescription, privacy: .public)
+                """
+            )
+        }
 
         guard let parentItemIdentifier = dbManager.parentItemIdentifierFromMetadata(
-            updatedMetadata
+            managedMetadata
         ) else {
             Self.logger.error(
                 """
@@ -262,7 +279,7 @@ public extension Item {
         }
 
         let fpItem = Item(
-            metadata: updatedMetadata,
+            metadata: managedMetadata,
             parentItemIdentifier: parentItemIdentifier,
             account: account,
             remoteInterface: remoteInterface
