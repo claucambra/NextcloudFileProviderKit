@@ -537,8 +537,6 @@ public extension Item {
             )
             return (modifiedItem, NSFileProviderError(.cannotSynchronize))
         }
-        let dirtyChildren =
-            dbManager.childItems(directoryMetadata: dirtyMetadata).toUnmanagedResults()
         let dirtyItem = Item(
             metadata: dirtyMetadata,
             parentItemIdentifier: .trashContainer,
@@ -641,7 +639,8 @@ public extension Item {
         var metadatas = [ItemMetadata]()
         for file in childFiles {
             let metadata = file.toItemMetadata()
-            guard let original = dirtyChildren
+            guard let original = dbManager
+                .childItems(directoryMetadata: dirtyMetadata)
                 .filter({ $0.ocId == metadata.ocId || $0.fileId == metadata.fileId })
                 .first
             else {
