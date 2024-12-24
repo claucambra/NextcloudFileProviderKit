@@ -226,7 +226,7 @@ public class Item: NSObject, NSFileProviderItem {
         account: Account,
         remoteInterface: RemoteInterface
     ) {
-        self.metadata = metadata
+        self.metadata = ItemMetadata(value: metadata)
         self.parentItemIdentifier = parentItemIdentifier
         self.account = account
         self.remoteInterface = remoteInterface
