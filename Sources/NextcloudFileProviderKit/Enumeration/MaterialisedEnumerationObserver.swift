@@ -83,10 +83,11 @@ public class MaterialisedEnumerationObserver: NSObject, NSFileProviderEnumeratio
             DispatchQueue.main.async {
                 Self.logger.info("Cleaning up local file metadatas for unmaterialised items")
                 for itemId in noLongerMaterialisedIds {
-                    guard let itemMetadata = dbManager.itemMetadata(ocId: itemId) else { continue }
-                    let database = dbManager.ncDatabase()
+                    guard let itemMetadata = dbManager.itemMetadata(ocId: itemId),
+                          let db = itemMetadata.realm
+                    else { continue }
                     do {
-                        try database.write { itemMetadata.downloaded = false }
+                        try db.write { itemMetadata.downloaded = false }
                     } catch let error {
                         Self.logger.error(
                             """
