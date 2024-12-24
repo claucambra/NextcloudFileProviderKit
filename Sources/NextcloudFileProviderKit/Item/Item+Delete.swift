@@ -73,27 +73,40 @@ public extension Item {
                 )
             }
 
-            guard let metadata = dbManager.itemMetadata(ocId: ocId) else {
+            guard let managedMetadata = dbManager.itemMetadata(ocId: ocId),
+                  let db = metadata.realm
+            else {
                 Self.logger.warning(
                     """
-                    Could not find item metadata for \(self.filename, privacy: .public)
-                    \(self.itemIdentifier.rawValue, privacy: .public)!
-                    Cannot finish trashing procedure.
+                    Could not find item metadata/db for \(self.filename, privacy: .public)
+                        \(self.itemIdentifier.rawValue, privacy: .public)!
+                        Cannot finish trashing procedure.
                     """
                 )
                 return NSFileProviderError(.cannotSynchronize)
             }
-            metadata.trashbinFileName = filename
-            metadata.trashbinDeletionTime = Date()
-            metadata.trashbinOriginalLocation =
-                String(self.metadata.serverUrl + "/" + filename).replacingOccurrences(
-                    of: account.davFilesUrl + "/", with: ""
+            do {
+                try db.write {
+                    managedMetadata.trashbinFileName = filename
+                    managedMetadata.trashbinDeletionTime = Date()
+                    managedMetadata.trashbinOriginalLocation =
+                        String(self.metadata.serverUrl + "/" + filename).replacingOccurrences(
+                            of: account.davFilesUrl + "/", with: ""
+                        )
+                }
+            } catch let error {
+                Self.logger.warning(
+                    """
+                    Could not update item metadata for \(self.filename, privacy: .public)
+                        \(self.itemIdentifier.rawValue, privacy: .public)!
+                        Received error: \(error.localizedDescription)
+                    """
                 )
-
-            dbManager.addItemMetadata(metadata)
+            }
 
             return nil
         }
+
         if self.metadata.directory {
             _ = dbManager.deleteDirectoryAndSubdirectoriesMetadata(ocId: ocId)
         } else {
