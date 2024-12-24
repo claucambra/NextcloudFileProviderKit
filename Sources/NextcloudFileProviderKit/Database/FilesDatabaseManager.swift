@@ -104,16 +104,8 @@ public class FilesDatabaseManager {
         !itemMetadatas.filter("account == %@", account).isEmpty
     }
 
-    public func itemMetadata(ocId: String, managed: Bool = false) -> ItemMetadata? {
-        // Realm objects are live-fire, i.e. they will be changed and invalidated according to
-        // changes in the db.
-        //
-        // Let's therefore create a copy
-        if let itemMetadata = itemMetadatas.filter("ocId == %@", ocId).first {
-            return managed ? itemMetadata : ItemMetadata(value: itemMetadata)
-        }
-
-        return nil
+    public func itemMetadata(ocId: String) -> ItemMetadata? {
+        ncDatabase().object(ofType: ItemMetadata.self, forPrimaryKey: ocId)
     }
 
     public func itemMetadata(
@@ -161,7 +153,7 @@ public class FilesDatabaseManager {
 
         for existingMetadata in existingMetadatas {
             guard !updatedMetadatas.contains(where: { $0.ocId == existingMetadata.ocId }),
-                  let metadataToDelete = itemMetadata(ocId: existingMetadata.ocId, managed: true)
+                  let metadataToDelete = itemMetadata(ocId: existingMetadata.ocId)
             else { continue }
 
             deletedMetadatas.append(metadataToDelete)
