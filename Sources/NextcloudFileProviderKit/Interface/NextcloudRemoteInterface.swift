@@ -22,6 +22,11 @@ public class NextcloudRemoteInterface: NextcloudKit, RemoteInterface {
     public var capabilities: Capabilities?
     private var capabilitiesFetchDate: Date?
 
+    public init(delegate: NextcloudKitDelegate? = nil) {
+        super.init()
+        self.delegate = delegate
+    }
+
     public func createFolder(
         remotePath: String,
         account: Account,
