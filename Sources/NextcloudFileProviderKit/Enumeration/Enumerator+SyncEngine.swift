@@ -323,7 +323,7 @@ extension Enumerator {
 
     static func readServerUrl(
         _ serverUrl: String,
-        pageSettings: (page: NSFileProviderPage, index: Int, size: Int)? = nil,
+        pageSettings: (page: NSFileProviderPage?, index: Int, size: Int)? = nil,
         account: Account,
         remoteInterface: RemoteInterface,
         dbManager: FilesDatabaseManager,
