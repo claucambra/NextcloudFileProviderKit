@@ -913,4 +913,50 @@ final class EnumeratorTests: XCTestCase {
             XCTAssertEqual((error as NSError?)?.code, NSFeatureUnsupportedError)
         }
     }
+
+    func testFolderPaginatedEnumeration() async throws {
+        remoteFolder.children = []
+        for i in 0...20 {
+            let childItem = MockRemoteItem(
+                identifier: "folderChild\(i)",
+                name: "folderChild\(i).txt",
+                remotePath: Self.account.davFilesUrl + "folder/folderChild\(i).txt",
+                account: Self.account.ncKitAccount,
+                username: Self.account.username,
+                userId: Self.account.id,
+                serverUrl: Self.account.serverUrl
+            )
+            childItem.parent = remoteFolder
+            remoteFolder.children.append(childItem)
+        }
+
+        let db = Self.dbManager.ncDatabase() // Strong ref for in memory test db
+        debugPrint(db)
+        let remoteInterface = MockRemoteInterface(rootItem: rootItem, pagination: true)
+
+        let oldEtag = "OLD"
+        var folderMetadata = remoteFolder.toItemMetadata(account: Self.account)
+        folderMetadata.etag = oldEtag
+
+        Self.dbManager.addItemMetadata(folderMetadata)
+        XCTAssertNotNil(Self.dbManager.itemMetadata(ocId: remoteFolder.identifier))
+
+        let enumerator = Enumerator(
+            enumeratedItemIdentifier: .init(remoteFolder.identifier),
+            account: Self.account,
+            remoteInterface: remoteInterface,
+            dbManager: Self.dbManager,
+            pageSize: 5
+        )
+        let observer = MockEnumerationObserver(enumerator: enumerator)
+        try await observer.enumerateItems()
+        XCTAssertEqual(observer.items.count, 21)
+
+        for item in observer.items {
+            XCTAssertNotNil(Self.dbManager.itemMetadata(ocId: item.itemIdentifier.rawValue))
+        }
+
+        XCTAssertEqual(observer.observedPages.first, NSFileProviderPage.initialPageSortedByName as NSFileProviderPage)
+        XCTAssertEqual(observer.observedPages.count, 5)
+    }
 }
