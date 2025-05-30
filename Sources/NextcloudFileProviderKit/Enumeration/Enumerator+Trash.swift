@@ -31,7 +31,6 @@ extension Enumerator {
 
             Task { @MainActor in
                 observer.didEnumerate(items)
-                Self.logger.info("Did enumerate \(items.count) trash items")
                 observer.finishEnumerating(upTo: fileProviderPageforNumPage(numPage))
             }
         }
@@ -70,12 +69,6 @@ extension Enumerator {
             )
             newTrashedItems.append(item)
 
-            Self.logger.debug(
-                """
-                Will enumerate changed trashed item with ocId: \(metadata.ocId, privacy: .public)
-                and name: \(metadata.fileName, privacy: .public)
-                """
-            )
         }
 
         let deletedTrashedItemsIdentifiers = existingTrashedItems.map {
@@ -85,12 +78,6 @@ extension Enumerator {
             for itemIdentifier in deletedTrashedItemsIdentifiers {
                 dbManager.deleteItemMetadata(ocId: itemIdentifier.rawValue)
             }
-            Self.logger.debug(
-                """
-                Will enumerate deleted trashed items:
-                \(deletedTrashedItemsIdentifiers, privacy: .public)
-                """
-            )
             observer.didDeleteItems(withIdentifiers: deletedTrashedItemsIdentifiers)
         }
 

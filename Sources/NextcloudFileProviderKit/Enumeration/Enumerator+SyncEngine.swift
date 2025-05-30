@@ -14,7 +14,6 @@
 
 import FileProvider
 import NextcloudKit
-import OSLog
 
 extension Enumerator {
     func fullRecursiveScan(
@@ -56,7 +55,7 @@ extension Enumerator {
             results.metadatas,
             results.newMetadatas,
             results.updatedMetadatas,
-            checkedDeletedMetadatas, 
+            checkedDeletedMetadatas,
             results.error
         )
     }
@@ -91,8 +90,6 @@ extension Enumerator {
                 ? account.davFilesUrl
                 : directoryMetadata.serverUrl + "/" + directoryMetadata.fileName
 
-        Self.logger.debug("About to read: \(itemServerUrl, privacy: .public)")
-
         let (
             metadatas, newMetadatas, updatedMetadatas, deletedMetadatas, readError
         ) = await Self.readServerUrl(
@@ -109,99 +106,41 @@ extension Enumerator {
             // Is the error is that we have found matching etags on this item, then ignore it
             // if we are doing a full rescan
             if readError.isNoChangesError && scanChangesOnly {
-                Self.logger.info("No changes in \(self.serverUrl) and only scanning changes.")
             } else {
-                Self.logger.error(
-                    """
-                    Finishing enumeration of changes at \(itemServerUrl, privacy: .public)
-                    with \(readError.errorDescription, privacy: .public)
-                    """
-                )
-
                 if readError.isNotFoundError {
-                    Self.logger.info(
-                        """
-                        404 error means item no longer exists.
-                        Deleting metadata and reporting as deletion without error
-                        """
-                    )
-
                     if let deletedMetadatas = dbManager.deleteDirectoryAndSubdirectoriesMetadata(
                         ocId: directoryMetadata.ocId
                     ) {
                         allDeletedMetadatas += deletedMetadatas
                     } else {
-                        Self.logger.error(
-                            """
-                            An error occurred while trying to delete directory in database,
-                            children not found in recursive scan
-                            """
-                        )
                     }
 
                 } else if readError.isNoChangesError {  // All is well, just no changed etags
-                    Self.logger.info(
-                        "Error was to say no changed files, not bad error. Won't check children."
-                    )
 
                 } else if readError.isUnauthenticatedError || readError.isCouldntConnectError {
-                    Self.logger.error(
-                        "Error will affect next enumerated items, so stopping enumeration."
-                    )
                     return ([], [] , [], [], readError)
                 }
             }
         }
 
-        Self.logger.info(
-            """
-            Finished reading serverUrl: \(itemServerUrl, privacy: .public)
-            for user: \(account.ncKitAccount, privacy: .public)
-            """
-        )
-
         if let metadatas {
             allMetadatas += metadatas
         } else {
-            Self.logger.warning(
-                """
-                Nil metadatas received in change read at \(itemServerUrl, privacy: .public)
-                for user: \(account.ncKitAccount, privacy: .public)
-                """
-            )
         }
 
         if let newMetadatas {
             allNewMetadatas += newMetadatas
         } else {
-            Self.logger.warning(
-                """
-                Nil new metadatas received in change read at \(itemServerUrl, privacy: .public)
-                for user: \(account.ncKitAccount, privacy: .public)
-                """
-            )
         }
 
         if let updatedMetadatas {
             allUpdatedMetadatas += updatedMetadatas
         } else {
-            Self.logger.warning(
-                """
-                Nil updated metadatas received in change read at \(itemServerUrl, privacy: .public)
-                for user: \(account.ncKitAccount, privacy: .public)
-                """
-            )
         }
 
         if let deletedMetadatas {
             allDeletedMetadatas += deletedMetadatas
         } else {
-            Self.logger.warning(
-                """
-                Nil deleted metadatas received in change read at \(itemServerUrl, privacy: .public)
-                for user: \(account.ncKitAccount, privacy: .public)
-                """
-            )
         }
 
         var childDirectoriesToScan: [SendableItemMetadata] = []
@@ -219,27 +158,17 @@ extension Enumerator {
             childDirectoriesToScan.append(candidateMetadata)
         }
 
-        Self.logger.debug(
-            "Candidate metadatas for further scan: \(candidateMetadatas, privacy: .public)"
-        )
-
         if childDirectoriesToScan.isEmpty {
             return (
-                metadatas: allMetadatas, 
+                metadatas: allMetadatas,
                 newMetadatas: allNewMetadatas,
-                updatedMetadatas: allUpdatedMetadatas, 
+                updatedMetadatas: allUpdatedMetadatas,
                 deletedMetadatas: allDeletedMetadatas,
                 nil
             )
         }
 
         for childDirectory in childDirectoriesToScan {
-            Self.logger.debug(
-                """
-                About to recursively scan: \(childDirectory.urlBase, privacy: .public)
-                with etag: \(childDirectory.etag, privacy: .public)
-                """
-            )
             let childScanResult = await scanRecursively(
                 childDirectory,
                 account: account,
@@ -273,23 +202,14 @@ extension Enumerator {
         deletedMetadatas: [SendableItemMetadata]?,
         readError: NKError?
     ) {
-        Self.logger.debug(
-            """
-            Starting async conversion of NKFiles for serverUrl: \(serverUrl, privacy: .public)
-            for user: \(account.ncKitAccount, privacy: .public)
-            """
-        )
-
-
         guard let (directoryMetadata, _, metadatas) =
             await files.toDirectoryReadMetadatas(account: account)
         else {
-            Self.logger.error("Could not convert NKFiles to DirectoryReadMetadatas!")
             return (nil, nil, nil, nil, .invalidData)
         }
 
         // STORE DATA FOR CURRENTLY SCANNED DIRECTORY
-        // We have now scanned this directory's contents, so update with etag in order to not check 
+        // We have now scanned this directory's contents, so update with etag in order to not check
         // again if not needed unless it's the root container
         if serverUrl != account.davFilesUrl {
             dbManager.addItemMetadata(directoryMetadata)
@@ -334,17 +254,6 @@ extension Enumerator {
     ) {
         let ncKitAccount = account.ncKitAccount
 
-        Self.logger.debug(
-            """
-            Starting to read serverUrl: \(serverUrl, privacy: .public)
-            for user: \(ncKitAccount, privacy: .public)
-            at depth \(depth.rawValue, privacy: .public).
-            username: \(account.username, privacy: .public),
-            password is empty: \(account.password == "" ? "EMPTY" : "NOT EMPTY"),
-            serverUrl: \(account.serverUrl, privacy: .public)
-            """
-        )
-
         let (_, files, _, error) = await remoteInterface.enumerate(
             remotePath: serverUrl,
             depth: depth,
@@ -365,32 +274,14 @@ extension Enumerator {
         )
 
         guard error == .success else {
-            Self.logger.error(
-                """
-                \(depth.rawValue, privacy: .public) depth read of url \(serverUrl, privacy: .public)
-                did not complete successfully, error: \(error.errorDescription, privacy: .public)
-                """
-            )
             return (nil, nil, nil, nil, error)
         }
 
         guard let receivedFile = files.first else {
-            Self.logger.error(
-                """
-                Received no items from readFileOrFolder of \(serverUrl, privacy: .public),
-                not much we can do...
-                """
-            )
             return (nil, nil, nil, nil, error)
         }
 
         guard receivedFile.directory else {
-            Self.logger.debug(
-                """
-                Read item is a file. Converting NKfile for serverUrl: \(serverUrl, privacy: .public)
-                for user: \(account.ncKitAccount, privacy: .public)
-                """
-            )
             let metadata = receivedFile.toItemMetadata()
             let isNew = dbManager.itemMetadata(ocId: metadata.ocId) == nil
             let newItems: [SendableItemMetadata] = isNew ? [metadata] : []
@@ -404,13 +295,6 @@ extension Enumerator {
            dir.etag != "",
            dir.etag == receivedFile.etag
         {
-            Self.logger.debug(
-                """
-                Read server url called with flag to stop enumerating at matching etags.
-                Returning and providing soft error.
-                """
-            )
-
             let description = "Fetched directory etag same as local copy. Ignoring child items."
             let nkError = NKError(
                 errorCode: NKError.noChangesErrorCode, errorDescription: description
@@ -438,7 +322,7 @@ extension Enumerator {
             let (
                 allMetadatas, newMetadatas, updatedMetadatas, deletedMetadatas, readError
             ) = await handleDepth1ReadFileOrFolder(
-                serverUrl: serverUrl, 
+                serverUrl: serverUrl,
                 account: account,
                 dbManager: dbManager,
                 files: files

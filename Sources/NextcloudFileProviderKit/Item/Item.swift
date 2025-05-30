@@ -15,7 +15,6 @@
 import FileProvider
 import NextcloudKit
 import UniformTypeIdentifiers
-import OSLog
 
 public class Item: NSObject, NSFileProviderItem {
     public enum FileProviderItemTransferError: Error {
@@ -256,8 +255,6 @@ public class Item: NSObject, NSFileProviderItem {
             remoteInterface: remoteInterface
         )
     }
-
-    static let logger = Logger(subsystem: Logger.subsystem, category: "item")
 
     public required init(
         metadata: SendableItemMetadata,

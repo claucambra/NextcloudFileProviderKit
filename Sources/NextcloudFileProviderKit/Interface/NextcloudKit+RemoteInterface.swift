@@ -105,7 +105,6 @@ extension NextcloudKit: RemoteInterface {
         remoteError: NKError
     ) {
         guard let remoteUrl = URL(string: remotePath) else {
-            uploadLogger.error("NCKit ext: Could not get url from \(remotePath, privacy: .public)")
             return ("", nil, nil, nil, .urlError)
         }
         let localUrl = URL(fileURLWithPath: localPath)
@@ -116,11 +115,6 @@ extension NextcloudKit: RemoteInterface {
         do {
             try fm.createDirectory(at: chunksOutputDirectoryUrl, withIntermediateDirectories: true)
         } catch let error {
-            uploadLogger.error(
-                """
-                Could not create temporary directory for chunked files: \(error, privacy: .public)
-                """
-            )
             return ("", nil, nil, nil, .urlError)
         }
 
@@ -136,28 +130,9 @@ extension NextcloudKit: RemoteInterface {
             .absoluteString
             .removingPercentEncoding
         else {
-            uploadLogger.error(
-                "NCKit ext: Could not get server url from \(remotePath, privacy: .public)"
-            )
             return ("", nil, nil, nil, .urlError)
         }
         let fileChunks = remainingChunks.toNcKitChunks()
-
-        uploadLogger.info(
-            """
-            Beginning chunked upload of: \(localPath, privacy: .public)
-                directory: \(directory, privacy: .public)
-                fileChunksOutputDirectory: \(fileChunksOutputDirectory, privacy: .public)
-                fileName: \(fileName, privacy: .public)
-                destinationFileName: \(destinationFileName, privacy: .public)
-                date: \(modificationDate?.debugDescription ?? "", privacy: .public)
-                creationDate: \(creationDate?.debugDescription ?? "", privacy: .public)
-                serverUrl: \(serverUrl, privacy: .public)
-                chunkFolder: \(remoteChunkStoreFolderName, privacy: .public)
-                filesChunk: \(fileChunks, privacy: .public)
-                chunkSize: \(chunkSize, privacy: .public)
-            """
-        )
 
         return await withCheckedContinuation { continuation in
             uploadChunk(

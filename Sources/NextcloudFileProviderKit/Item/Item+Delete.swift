@@ -8,8 +8,6 @@
 import FileProvider
 import Foundation
 import NextcloudKit
-import OSLog
-
 public extension Item {
     // NOTE: the trashing metadata modification procedure here is rough. You SHOULD run a rescan of
     // the trash in order to ensure you are getting a correct picture of the item's current remote
@@ -42,23 +40,8 @@ public extension Item {
         })
 
         guard error == .success else {
-            Self.logger.error(
-                """
-                Could not delete item with ocId \(ocId, privacy: .public)...
-                at \(serverFileNameUrl, privacy: .public)...
-                received error: \(error.errorCode, privacy: .public)
-                \(error.errorDescription, privacy: .public)
-                """
-            )
             return error.fileProviderError
         }
-
-        Self.logger.info(
-            """
-            Successfully deleted item with identifier: \(ocId, privacy: .public)...
-            at: \(serverFileNameUrl, privacy: .public)
-            """
-        )
 
         guard !trashing else {
             if self.metadata.directory {
@@ -74,13 +57,6 @@ public extension Item {
             }
 
             guard var metadata = dbManager.itemMetadata(ocId: ocId) else {
-                Self.logger.warning(
-                    """
-                    Could not find item metadata for \(self.filename, privacy: .public)
-                    \(self.itemIdentifier.rawValue, privacy: .public)!
-                    Cannot finish trashing procedure.
-                    """
-                )
                 return NSFileProviderError(.cannotSynchronize)
             }
             metadata.trashbinFileName = filename

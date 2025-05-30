@@ -6,25 +6,13 @@
 //
 
 import Foundation
-import OSLog
 
 extension Array<SendableItemMetadata> {
     func toFileProviderItems(
         account: Account, remoteInterface: RemoteInterface, dbManager: FilesDatabaseManager
     ) async -> [Item] {
-        let logger = Logger(
-            subsystem: Logger.subsystem, category: "itemMetadataToFileProviderItems"
-        )
-
         return await concurrentChunkedCompactMap { itemMetadata in
             guard !itemMetadata.e2eEncrypted else {
-                logger.error(
-                    """
-                    Skipping encrypted metadata in enumeration:
-                    \(itemMetadata.ocId, privacy: .public)
-                    \(itemMetadata.fileName, privacy: .public)
-                    """
-                )
                 return nil
             }
 
@@ -37,22 +25,8 @@ extension Array<SendableItemMetadata> {
                     account: account,
                     remoteInterface: remoteInterface
                 )
-                logger.debug(
-                    """
-                    Will enumerate item with ocId: \(itemMetadata.ocId, privacy: .public)
-                    and name: \(itemMetadata.fileName, privacy: .public)
-                    """
-                )
-
                 return item
             } else {
-                logger.error(
-                    """
-                    Could not get valid parentItemIdentifier for item with ocId:
-                    \(itemMetadata.ocId, privacy: .public)
-                    and name: \(itemMetadata.fileName, privacy: .public), skipping enumeration
-                    """
-                )
             }
             return nil
         }

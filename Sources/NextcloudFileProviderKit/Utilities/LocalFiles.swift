@@ -14,17 +14,11 @@
 
 import FileProvider
 import Foundation
-import OSLog
-
-fileprivate let lfuLogger = Logger(subsystem: Logger.subsystem, category: "localfileutils")
 
 public func pathForAppGroupContainer() -> URL? {
     guard let appGroupIdentifier = Bundle.main.object(
         forInfoDictionaryKey: "NCFPKAppGroupIdentifier"
     ) as? String else {
-        lfuLogger.critical(
-            "Could not get app group container url as Info.plist missing NCFPKAppGroupIdentifier!"
-        )
         return nil
     }
 
@@ -39,9 +33,6 @@ public func pathForFileProviderExtData() -> URL? {
 
 public func pathForFileProviderTempFilesForDomain(_ domain: NSFileProviderDomain) throws -> URL? {
     guard let fpManager = NSFileProviderManager(for: domain) else {
-        lfuLogger.error(
-            "Unable to get file provider manager for domain: \(domain.displayName, privacy: .public)"
-        )
         throw NSFileProviderError(.providerNotFound)
     }
 

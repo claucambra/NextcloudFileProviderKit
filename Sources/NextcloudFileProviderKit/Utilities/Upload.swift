@@ -9,11 +9,9 @@ import Alamofire
 import Foundation
 import NextcloudCapabilitiesKit
 import NextcloudKit
-import OSLog
 import RealmSwift
 
 let defaultFileChunkSize = 104_857_600 // 100 MiB
-let uploadLogger = Logger(subsystem: Logger.subsystem, category: "upload")
 
 func upload(
     fileLocatedAt localFilePath: String,
@@ -44,7 +42,6 @@ func upload(
 
     let chunkSize = await {
         if let chunkSize {
-            uploadLogger.info("Using provided chunkSize: \(chunkSize, privacy: .public)")
             return chunkSize
         }
         let (_, capabilitiesData, error) = await remoteInterface.fetchCapabilities(
@@ -55,20 +52,8 @@ func upload(
               let serverChunkSize = capabilities.files?.chunkedUpload?.maxChunkSize,
               serverChunkSize > 0
         else {
-            uploadLogger.info(
-                """
-                Received nil capabilities data.
-                    Received error: \(error.errorDescription, privacy: .public)
-                    Using default file chunk size: \(defaultFileChunkSize, privacy: .public)
-                """
-            )
             return defaultFileChunkSize
         }
-        uploadLogger.info(
-            """
-            Received file chunk size from server: \(serverChunkSize, privacy: .public)
-            """
-        )
         return Int(serverChunkSize)
     }()
 
@@ -90,15 +75,6 @@ func upload(
 
     let chunkUploadId = chunkUploadId ?? UUID().uuidString
 
-    uploadLogger.info(
-        """
-        Performing chunked upload to \(remotePath, privacy: .public)
-            localFilePath: \(localFilePath, privacy: .public)
-            remoteChunkStoreFolderName: \(chunkUploadId, privacy: .public)
-            chunkSize: \(chunkSize, privacy: .public)
-        """
-    )
-
     let remainingChunks = dbManager
         .ncDatabase()
         .objects(RemoteFileChunk.self)
@@ -117,37 +93,21 @@ func upload(
         options: options,
         currentNumChunksUpdateHandler: { _ in },
         chunkCounter: { currentChunk in
-            uploadLogger.info(
-                """
-                \(localFilePath, privacy: .public) current chunk: \(currentChunk, privacy: .public)
-                """
-            )
         },
         chunkUploadStartHandler: { chunks in
-            uploadLogger.info("\(localFilePath, privacy: .public) chunked upload starting...")
-
             // Do not add chunks to database if we have done this already
             guard remainingChunks.isEmpty else { return }
 
             let db = dbManager.ncDatabase()
             do {
                 try db.write { db.add(chunks.map { RemoteFileChunk(value: $0) }) }
-            } catch let error {
-                uploadLogger.error(
-                    """
-                    Could not write chunks to db, won't be able to resume upload if transfer stops.
-                        \(error.localizedDescription, privacy: .public)
-                    """
-                )
+            } catch {
             }
         },
         requestHandler: requestHandler,
         taskHandler: taskHandler,
         progressHandler: progressHandler,
         chunkUploadCompleteHandler: { chunk in
-            uploadLogger.info(
-                "\(localFilePath, privacy: .public) chunk \(chunk.fileName, privacy: .public) done"
-            )
             let db = dbManager.ncDatabase()
             do {
                 try db.write {
@@ -158,19 +118,11 @@ func upload(
                             $0.fileName == chunk.fileName
                         }
                         .forEach { db.delete($0) } }
-            } catch let error {
-                uploadLogger.error(
-                    """
-                    Could not delete chunks in db, won't resume upload correctly if transfer stops.
-                        \(error.localizedDescription, privacy: .public)
-                    """
-                )
+            } catch {
             }
             chunkUploadCompleteHandler(chunk)
         }
     )
-
-    uploadLogger.info("\(localFilePath, privacy: .public) successfully uploaded in chunks")
 
     return (file?.ocId, chunks, file?.etag, file?.date, file?.size, afError, remoteError)
 }

@@ -14,7 +14,6 @@
 
 import FileProvider
 import Foundation
-import OSLog
 import RealmSwift
 
 extension FilesDatabaseManager {
@@ -64,12 +63,6 @@ extension FilesDatabaseManager {
             .where({ $0.ocId == ocId && $0.directory })
             .first
         else {
-            Self.logger.error(
-                """
-                Could not find directory metadata for ocId \(ocId, privacy: .public).
-                    Not proceeding with deletion
-                """
-            )
             return nil
         }
 
@@ -79,28 +72,10 @@ extension FilesDatabaseManager {
         let directoryAccount = directoryMetadata.account
         let directoryEtag = directoryMetadata.etag
 
-        Self.logger.debug(
-            """
-            Deleting root directory metadata in recursive delete.
-                ocID: \(directoryMetadata.ocId, privacy: .public)
-                etag: \(directoryEtag, privacy: .public)
-                serverUrl: \(directoryUrlPath, privacy: .public)
-            """
-        )
-
         let database = ncDatabase()
         do {
             try database.write { database.delete(directoryMetadata) }
-        } catch let error {
-            Self.logger.error(
-                """
-                Failure to delete root directory metadata in recursive delete.
-                    Received error: \(error.localizedDescription)
-                    ocID: \(directoryOcId, privacy: .public),
-                    etag: \(directoryEtag, privacy: .public),
-                    serverUrl: \(directoryUrlPath, privacy: .public)
-                """
-            )
+        } catch {
             return nil
         }
 
@@ -115,27 +90,9 @@ extension FilesDatabaseManager {
             do {
                 try database.write { database.delete(result) }
                 deletedMetadatas.append(inactiveItemMetadata)
-            } catch let error {
-                Self.logger.error(
-                    """
-                    Failure to delete directory metadata child in recursive delete.
-                        Received error: \(error.localizedDescription)
-                        ocID: \(directoryOcId, privacy: .public),
-                        etag: \(directoryEtag, privacy: .public),
-                        serverUrl: \(directoryUrlPath, privacy: .public)
-                    """
-                )
+            } catch {
             }
         }
-
-        Self.logger.debug(
-            """
-            Completed deletions in directory recursive delete.
-            ocID: \(directoryOcId, privacy: .public),
-            etag: \(directoryEtag, privacy: .public),
-            serverUrl: \(directoryUrlPath, privacy: .public)
-            """
-        )
 
         return deletedMetadatas
     }
@@ -147,12 +104,6 @@ extension FilesDatabaseManager {
             .where({ $0.ocId == ocId && $0.directory })
             .first
         else {
-            Self.logger.error(
-                """
-                Could not find a directory with ocID \(ocId, privacy: .public)
-                    cannot proceed with recursive renaming
-                """
-            )
             return nil
         }
 
@@ -166,12 +117,6 @@ extension FilesDatabaseManager {
         }
 
         renameItemMetadata(ocId: ocId, newServerUrl: newServerUrl, newFileName: newFileName)
-        Self.logger.debug(
-            """
-            Renamed root renaming directory from: \(oldDirectoryServerUrl, privacy: .public)
-                                              to: \(newDirectoryServerUrl, privacy: .public)
-            """
-        )
 
         do {
             let database = ncDatabase()
@@ -182,22 +127,9 @@ extension FilesDatabaseManager {
                         of: oldDirectoryServerUrl, with: newDirectoryServerUrl)
                     childItem.serverUrl = movedServerUrl
                     database.add(childItem, update: .all)
-                    Self.logger.debug(
-                        """
-                        Moved childItem at: \(oldServerUrl, privacy: .public)
-                                        to: \(movedServerUrl, privacy: .public)
-                        """)
                 }
             }
         } catch {
-            Self.logger.error(
-                """
-                Could not rename directory metadata with ocId: \(ocId, privacy: .public)
-                    to new serverUrl: \(newServerUrl)
-                    received error: \(error.localizedDescription, privacy: .public)
-                """
-            )
-
             return nil
         }
 

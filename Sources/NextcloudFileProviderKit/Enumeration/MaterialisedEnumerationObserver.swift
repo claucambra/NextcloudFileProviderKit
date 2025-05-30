@@ -14,11 +14,9 @@
 
 import FileProvider
 import Foundation
-import OSLog
 import RealmSwift
 
 public class MaterialisedEnumerationObserver: NSObject, NSFileProviderEnumerationObserver {
-    static let logger = Logger(subsystem: Logger.subsystem, category: "materialisedobservation")
     public let ncKitAccount: String
     let dbManager: FilesDatabaseManager
     private let completionHandler: (_ deletedOcIds: Set<String>) -> Void
@@ -44,7 +42,6 @@ public class MaterialisedEnumerationObserver: NSObject, NSFileProviderEnumeratio
     }
 
     public func finishEnumerating(upTo _: NSFileProviderPage?) {
-        Self.logger.debug("Handling enumerated materialised items.")
         Self.handleEnumeratedItems(
             allEnumeratedItemIds,
             account: ncKitAccount,
@@ -54,9 +51,6 @@ public class MaterialisedEnumerationObserver: NSObject, NSFileProviderEnumeratio
     }
 
     public func finishEnumeratingWithError(_ error: Error) {
-        Self.logger.error(
-            "Ran into error when enumerating materialised items: \(error.localizedDescription, privacy: .public). Handling items enumerated so far"
-        )
         Self.handleEnumeratedItems(
             allEnumeratedItemIds,
             account: ncKitAccount,
@@ -88,7 +82,6 @@ public class MaterialisedEnumerationObserver: NSObject, NSFileProviderEnumeratio
             }
 
             DispatchQueue.main.async {
-                Self.logger.info("Cleaning up local file metadatas for unmaterialised items")
                 for itemId in noLongerMaterialisedIds {
                     guard var itemMetadata = dbManager.itemMetadata(ocId: itemId) else { continue }
                     itemMetadata.downloaded = false
