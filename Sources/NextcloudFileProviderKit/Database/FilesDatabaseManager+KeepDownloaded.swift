@@ -17,7 +17,7 @@ public extension FilesDatabaseManager {
                 Could not update keepDownloaded status for item: \(metadata.fileName)
                     as the system does not support this state.
             """
-            Self.logger.error("\(errorString, privacy: .public)")
+            Self.logger.error(errorString)
             throw NSError(
                 domain: Self.errorDomain,
                 code: NSFeatureUnsupportedError,
@@ -31,7 +31,7 @@ public extension FilesDatabaseManager {
                     ocID: \(metadata.ocId)
                     filename: \(metadata.fileName)
             """
-            Self.logger.error("\(errorString, privacy: .public)")
+            Self.logger.error(errorString)
             throw NSError(
                 domain: Self.errorDomain,
                 code: ErrorCode.metadataNotFound.rawValue,
@@ -45,8 +45,8 @@ public extension FilesDatabaseManager {
             Self.logger.debug(
                 """
                 Updated keepDownloaded status for item metadata.
-                    ocID: \(metadata.ocId, privacy: .public)
-                    fileName: \(metadata.fileName, privacy: .public)
+                    ocID: \(metadata.ocId)
+                    fileName: \(metadata.fileName)
                 """
             )
         }

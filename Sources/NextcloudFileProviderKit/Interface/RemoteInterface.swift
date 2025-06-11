@@ -10,7 +10,6 @@ import FileProvider
 import Foundation
 import NextcloudCapabilitiesKit
 import NextcloudKit
-import OSLog
 
 
 public enum EnumerateDepth: String {
@@ -174,9 +173,7 @@ public protocol RemoteInterface {
 
 public extension RemoteInterface {
 
-    private var logger: Logger {
-        Logger(subsystem: Logger.subsystem, category: "RemoteInterface")
-    }
+    private var logger: NCFPKLogger { NCFPKLogger(category: "RemoteInterface") }
 
     func currentCapabilities(
         account: Account,

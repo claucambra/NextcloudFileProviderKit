@@ -39,9 +39,9 @@ public extension Item {
         guard createError == .success else {
             Self.logger.error(
                 """
-                Could not create new folder at: \(remotePath, privacy: .public),
-                    received error: \(createError.errorCode, privacy: .public)
-                    \(createError.errorDescription, privacy: .public)
+                Could not create new folder at: \(remotePath),
+                    received error: \(createError.errorCode)
+                    \(createError.errorDescription)
                 """
             )
             return (nil, await createError.fileProviderError(
@@ -74,9 +74,9 @@ public extension Item {
         guard readError == .success else {
             Self.logger.error(
                 """
-                Could not read new folder at: \(remotePath, privacy: .public),
-                    received error: \(readError.errorCode, privacy: .public)
-                    \(readError.errorDescription, privacy: .public)
+                Could not read new folder at: \(remotePath),
+                    received error: \(readError.errorCode)
+                    \(readError.errorDescription)
                 """
             )
             return (nil, await readError.fileProviderError(
@@ -146,10 +146,10 @@ public extension Item {
         guard error == .success, let ocId else {
             Self.logger.error(
                 """
-                Could not upload item with filename: \(itemTemplate.filename, privacy: .public),
-                    received error: \(error.errorCode, privacy: .public)
-                    \(error.errorDescription, privacy: .public)
-                    received ocId: \(ocId ?? "empty", privacy: .public)
+                Could not upload item with filename: \(itemTemplate.filename),
+                    received error: \(error.errorCode)
+                    \(error.errorDescription)
+                    received ocId: \(ocId ?? "empty")
                 """
             )
             return (nil, await error.fileProviderError(
@@ -161,13 +161,13 @@ public extension Item {
         
         Self.logger.info(
             """
-            Successfully uploaded item with identifier: \(ocId, privacy: .public)
-            filename: \(itemTemplate.filename, privacy: .public)
-            ocId: \(ocId, privacy: .public)
-            etag: \(etag ?? "", privacy: .public)
-            date: \(date ?? Date(), privacy: .public)
-            size: \(Int(size ?? -1), privacy: .public),
-            account: \(account.ncKitAccount, privacy: .public)
+            Successfully uploaded item with identifier: \(ocId)
+                filename: \(itemTemplate.filename)
+                ocId: \(ocId)
+                etag: \(etag ?? "")
+                date: \(date ?? Date())
+                size: \(Int(size ?? -1)),
+                account: \(account.ncKitAccount)
             """
         )
         
@@ -175,8 +175,8 @@ public extension Item {
             Self.logger.warning(
                 """
                 Created item upload reported as successful, but there are differences between
-                the received file size (\(Int(size ?? -1), privacy: .public))
-                and the original file size (\(itemTemplate.documentSize??.int64Value ?? 0))
+                    the received file size (\(Int(size ?? -1)))
+                    and the original file size (\(itemTemplate.documentSize??.int64Value ?? 0))
                 """
             )
         }
@@ -235,11 +235,7 @@ public extension Item {
         progress: Progress,
         dbManager: FilesDatabaseManager
     ) async throws -> Item? {
-        Self.logger.debug(
-            """
-            Handling new bundle/package/internal directory at: \(contents.path, privacy: .public)
-            """
-        )
+        Self.logger.debug("Handling new bundle/package/internal directory at: \(contents.path)")
         let attributesToFetch: Set<URLResourceKey> = [
             .isDirectoryKey, .fileSizeKey, .creationDateKey, .contentModificationDateKey
         ]
@@ -249,8 +245,7 @@ public extension Item {
         ) else {
             Self.logger.error(
                 """
-                Could not create enumerator for contents of bundle or package
-                    at: \(contents.path, privacy: .public)
+                Could not create enumerator for contents of bundle or package at: \(contents.path)
                 """
             )
             throw NSError(domain: NSURLErrorDomain, code: NSURLErrorResourceUnavailable)
@@ -260,7 +255,7 @@ public extension Item {
             Self.logger.error(
                 """
                 Could not create enumerator array for contents of bundle or package
-                    at: \(contents.path, privacy: .public)
+                    at: \(contents.path)
                 """
             )
             throw NSError(domain: NSURLErrorDomain, code: NSURLErrorResourceUnavailable)
@@ -288,11 +283,7 @@ public extension Item {
             let childUrlAttributes = try childUrl.resourceValues(forKeys: attributesToFetch)
 
             if childUrlAttributes.isDirectory ?? false {
-                Self.logger.debug(
-                    """
-                    Handling child bundle or package directory at: \(childUrlPath, privacy: .public)
-                    """
-                )
+                Self.logger.debug("Handling child bundle or package directory at: \(childUrlPath)")
                 let (_, _, _, createError) = await remoteInterface.createFolder(
                     remotePath: childRemoteUrl,
                     account: account,
@@ -313,9 +304,9 @@ public extension Item {
                 guard createError == .success || createError.matchesCollisionError else {
                     Self.logger.error(
                         """
-                        Could not create new bpi folder at: \(remotePath, privacy: .public),
-                        received error: \(createError.errorCode, privacy: .public)
-                        \(createError.errorDescription, privacy: .public)
+                        Could not create new bpi folder at: \(remotePath),
+                            received error: \(createError.errorCode)
+                            \(createError.errorDescription)
                         """
                     )
                     throw remoteErrorToThrow(createError)
@@ -323,11 +314,7 @@ public extension Item {
                 remoteDirectoriesPaths.append(childRemoteUrl)
 
             } else {
-                Self.logger.debug(
-                    """
-                    Handling child bundle or package file at: \(childUrlPath, privacy: .public)
-                    """
-                )
+                Self.logger.debug("Handling child bundle or package file at: \(childUrlPath)")
                 let (_, _, _, _, _, _, error) = await upload(
                     fileLocatedAt: childUrlPath,
                     toRemotePath: childRemoteUrl,
@@ -354,9 +341,9 @@ public extension Item {
                 guard error == .success || error.matchesCollisionError else {
                     Self.logger.error(
                         """
-                        Could not upload bpi file at: \(childUrlPath, privacy: .public),
-                        received error: \(error.errorCode, privacy: .public)
-                        \(error.errorDescription, privacy: .public)
+                        Could not upload bpi file at: \(childUrlPath),
+                            received error: \(error.errorCode)
+                            \(error.errorDescription)
                         """
                     )
                     throw remoteErrorToThrow(error)
@@ -367,7 +354,7 @@ public extension Item {
 
         for remoteDirectoryPath in remoteDirectoriesPaths {
             // After everything, check into what the final state is of each folder now
-            Self.logger.debug("Reading bpi folder at: \(remoteDirectoryPath, privacy: .public)")
+            Self.logger.debug("Reading bpi folder at: \(remoteDirectoryPath)")
             let (_, _, _, _, _, readError) = await Enumerator.readServerUrl(
                 remoteDirectoryPath,
                 account: account,
@@ -378,8 +365,8 @@ public extension Item {
             if let readError, readError != .success {
                 Self.logger.error(
                     """
-                    Could not read bpi folder at: \(remotePath, privacy: .public),
-                    received error: \(readError.errorDescription, privacy: .public)
+                    Could not read bpi folder at: \(remotePath),
+                        received error: \(readError.errorDescription)
                     """
                 )
                 throw remoteErrorToThrow(readError)
@@ -391,12 +378,9 @@ public extension Item {
         ) else {
             Self.logger.error(
                 """
-                Could not find directory metadata for bundle or package at:
-                    \(remotePath, privacy: .public)
-                    of account:
-                    \(account.ncKitAccount, privacy: .public)
-                    with contents located at:
-                    \(contentsPath, privacy: .public)
+                Could not find directory metadata for bundle or package at: \(remotePath)
+                    of account: \(account.ncKitAccount)
+                    with contents located at: \(contentsPath)
                 """
             )
             // Yes, it's weird to throw a "non-existent item" error during an item's creation.
@@ -437,7 +421,7 @@ public extension Item {
 
         guard itemTemplate.contentType != .symbolicLink else {
             Self.logger.error(
-                "Cannot create item \(tempId, privacy: .public), symbolic links not supported."
+                "Cannot create item \(tempId), symbolic links not supported."
             )
             return (nil, NSError(domain: NSCocoaErrorDomain, code: NSFeatureUnsupportedError))
         }
@@ -446,8 +430,8 @@ public extension Item {
             // TODO: This needs to be properly handled with a check in the db
             Self.logger.info(
                 """
-                Not creating item: \(itemTemplate.itemIdentifier.rawValue, privacy: .public)
-                as it may already exist
+                Not creating item: \(itemTemplate.itemIdentifier.rawValue)
+                    as it may already exist
                 """
             )
             return (nil, NSFileProviderError(.cannotSynchronize))
@@ -467,9 +451,9 @@ public extension Item {
             ) else {
                 Self.logger.error(
                     """
-                    Not creating item: \(itemTemplate.itemIdentifier.rawValue, privacy: .public),
+                    Not creating item: \(itemTemplate.itemIdentifier.rawValue),
                         could not find metadata for parentItemIdentifier:
-                        \(parentItemIdentifier.rawValue, privacy: .public)
+                        \(parentItemIdentifier.rawValue)
                     """
                 )
                 return (nil, NSFileProviderError(.cannotSynchronize))
@@ -514,12 +498,12 @@ public extension Item {
 
         Self.logger.debug(
             """
-            About to upload item with identifier: \(tempId, privacy: .public)
-            of type: \(itemTemplate.contentType?.identifier ?? "UNKNOWN", privacy: .public)
-            (is folder: \(itemTemplateIsFolder ? "yes" : "no", privacy: .public)
-            and filename: \(itemTemplate.filename, privacy: .public)
-            to server url: \(newServerUrlFileName, privacy: .public)
-            with contents located at: \(fileNameLocalPath, privacy: .public)
+            About to upload item with identifier: \(tempId)
+                of type: \(itemTemplate.contentType?.identifier ?? "UNKNOWN")
+                (is folder: \(itemTemplateIsFolder ? "yes" : "no")
+                and filename: \(itemTemplate.filename)
+                to server url: \(newServerUrlFileName)
+                with contents located at: \(fileNameLocalPath)
             """
         )
 
@@ -549,11 +533,11 @@ public extension Item {
             guard error == nil || fpErrorCode == .filenameCollision else {
                 Self.logger.error(
                     """
-                    Could not create item with identifier: \(tempId, privacy: .public),
+                    Could not create item with identifier: \(tempId),
                         as it is a bundle or package but could not create the folder.
-                        item: \(item, privacy: .public)
-                        error: \(error?.localizedDescription ?? "nil", privacy: .public)
-                        file provider error code: \(fpErrorCode?.rawValue ?? -1, privacy: .public)
+                        item: \(item)
+                        error: \(error?.localizedDescription ?? "nil")
+                        file provider error code: \(fpErrorCode?.rawValue ?? -1)
                     """
                 )
                 return (item, error)
@@ -562,7 +546,7 @@ public extension Item {
             if item == nil {
                 Self.logger.debug(
                     """
-                    Item: \(newServerUrlFileName, privacy: .public),
+                    Item: \(newServerUrlFileName),
                         is a bundle or package whose root folder already exists, ignoring errors.
                         Fetching remote information, proceeding with creation of internal contents.
                     """
@@ -580,9 +564,9 @@ public extension Item {
                     Self.logger.error(
                         """
                         Could not read existing bundle or package folder at:
-                        \(newServerUrlFileName, privacy: .public),
-                        received error: \(readError.errorCode, privacy: .public)
-                        \(readError.errorDescription, privacy: .public)
+                            \(newServerUrlFileName),
+                            received error: \(readError.errorCode)
+                            \(readError.errorDescription)
                         """
                     )
                     return (nil, readError.fileProviderError)
@@ -590,7 +574,7 @@ public extension Item {
                 guard let itemMetadata = metadatas?.first else {
                     Self.logger.error(
                         """
-                        Could not create item with identifier: \(tempId, privacy: .public),
+                        Could not create item with identifier: \(tempId),
                             for remotely-existing bundle or package. This should not happen.
                         """
                     )
@@ -615,7 +599,7 @@ public extension Item {
             guard let item else {
                 Self.logger.error(
                     """
-                    Could not create item with identifier: \(tempId, privacy: .public),
+                    Could not create item with identifier: \(tempId),
                         for remotely-existing bundle or package as item is null.
                         This should not happen!
                     """
@@ -626,7 +610,7 @@ public extension Item {
             guard let url else {
                 Self.logger.error(
                     """
-                    Could not create item with identifier: \(tempId, privacy: .public),
+                    Could not create item with identifier: \(tempId),
                         as it is a bundle or package and no contents were provided
                     """
                 )
@@ -638,7 +622,7 @@ public extension Item {
             // contents
             Self.logger.debug(
                 """
-                Handling bundle or package contents for item: \(tempId, privacy: .public)
+                Handling bundle or package contents for item: \(tempId)
                 """
             )
             do {

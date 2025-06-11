@@ -22,8 +22,8 @@ extension Item {
             Self.logger.error(
                 """
                 Error attempting to move item into trash:
-                \(modifiedItem.filename, privacy: .public)
-                \(deleteError?.localizedDescription ?? "", privacy: .public)
+                    \(modifiedItem.filename)
+                    \(deleteError?.localizedDescription ?? "")
                 """
             )
             return (modifiedItem, deleteError)
@@ -34,7 +34,7 @@ extension Item {
             Self.logger.error(
                 """
                 Could not correctly process trashing results, dirty metadata not found.
-                \(modifiedItem.filename, privacy: .public) \(ocId, privacy: .public)
+                    \(modifiedItem.filename) \(ocId)
                 """
             )
             return (modifiedItem, NSFileProviderError(.cannotSynchronize))
@@ -68,7 +68,7 @@ extension Item {
             Self.logger.error(
                 """
                 Received bad error from post-trashing remote scan:
-                    \(error.errorDescription, privacy: .public) \(files, privacy: .public)
+                    \(error.errorDescription) \(files)
                 """
             )
             return (dirtyItem, error.fileProviderError)
@@ -83,12 +83,12 @@ extension Item {
             Self.logger.error(
                 """
                 Did not find trashed item:
-                    \(modifiedItem.filename, privacy: .public)
-                    \(modifiedItem.itemIdentifier.rawValue, privacy: .public)
+                    \(modifiedItem.filename)
+                    \(modifiedItem.itemIdentifier.rawValue)
                 in trash. Asking for a rescan. Found trashed files were:
                     \(files.map {
                         ($0.ocId, $0.fileId, $0.fileName, $0.trashbinFileName)
-                    }, privacy: .public)
+                    })
                 """
             )
             if #available(macOS 11.3, *) {
@@ -135,7 +135,7 @@ extension Item {
             Self.logger.error(
                 """
                 Received bad error or files from post-trashing child items remote scan:
-                \(error.errorDescription, privacy: .public) \(files, privacy: .public)
+                    \(error.errorDescription) \(files)
                 """
             )
             return (postDeleteItem, childError.fileProviderError)
@@ -151,7 +151,7 @@ extension Item {
             else {
                 Self.logger.info(
                     """
-                    Skipping post-trash child item metadata: \(metadata.fileName, privacy: .public)
+                    Skipping post-trash child item metadata: \(metadata.fileName)
                         Could not find matching existing item in database, cannot do ocId correction
                     """
                 )
@@ -213,8 +213,8 @@ extension Item {
         guard restoreError == .success else {
             Self.logger.error(
                 """
-                Could not restore item \(modifiedItem.filename, privacy: .public) from trash
-                    Received error: \(restoreError.errorDescription, privacy: .public)
+                Could not restore item \(modifiedItem.filename) from trash
+                    Received error: \(restoreError.errorDescription)
                 """
             )
             return (modifiedItem, restoreError.fileProviderError)
@@ -222,8 +222,8 @@ extension Item {
         guard modifiedItem.metadata.trashbinOriginalLocation != "" else {
             Self.logger.error(
                 """
-                Could not scan restored item \(modifiedItem.filename, privacy: .public).
-                The trashed file's original location is invalid.
+                Could not scan restored item \(modifiedItem.filename).
+                    The trashed file's original location is invalid.
                 """
             )
             if #available(macOS 11.3, *) {
@@ -247,9 +247,9 @@ extension Item {
         guard enumerateError == .success, !files.isEmpty, let target = files.first else {
             Self.logger.error(
                 """
-                Could not scan restored state of file \(originalLocation, privacy: .public)
-                Received error: \(enumerateError.errorDescription, privacy: .public)
-                Files: \(files.count, privacy: .public)
+                Could not scan restored state of file \(originalLocation)
+                    Received error: \(enumerateError.errorDescription)
+                    Files: \(files.count)
                 """
             )
             if #available(macOS 11.3, *) {
@@ -261,9 +261,9 @@ extension Item {
         guard target.ocId == modifiedItem.itemIdentifier.rawValue else {
             Self.logger.warning(
                 """
-                Restored item \(originalLocation, privacy: .public)
-                does not match \(modifiedItem.filename, privacy: .public)
-                (it is likely that when restoring from the trash, there was another identical item).
+                Restored item \(originalLocation)
+                    does not match \(modifiedItem.filename)
+                    (it is likely that when restoring from the trash, there was another identical item).
                 """
             )
 
@@ -275,8 +275,8 @@ extension Item {
 
             Self.logger.info(
                 """
-                Scanning parent folder at \(parentDirectoryRemotePath, privacy: .public) for current
-                state of item restored from trash.
+                Scanning parent folder at \(parentDirectoryRemotePath) for current
+                    state of item restored from trash.
                 """
             )
 
@@ -294,8 +294,8 @@ extension Item {
             guard folderScanError == .success else {
                 Self.logger.error(
                     """
-                    Scanning parent folder at \(parentDirectoryRemotePath, privacy: .public)
-                    returned error: \(folderScanError.errorDescription)
+                    Scanning parent folder at \(parentDirectoryRemotePath)
+                        returned error: \(folderScanError.errorDescription)
                     """
                 )
                 return (modifiedItem, NSFileProviderError(.cannotSynchronize))
@@ -306,8 +306,8 @@ extension Item {
             ) else {
                 Self.logger.error(
                     """
-                    Scanning parent folder at \(parentDirectoryRemotePath, privacy: .public)
-                    finished successfully but the target item restored from trash not found.
+                    Scanning parent folder at \(parentDirectoryRemotePath)
+                        finished successfully but the target item restored from trash not found.
                     """
                 )
                 return (modifiedItem, NSFileProviderError(.cannotSynchronize))

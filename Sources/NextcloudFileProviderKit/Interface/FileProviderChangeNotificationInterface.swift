@@ -7,13 +7,10 @@
 
 import FileProvider
 import Foundation
-import OSLog
 
 public class FileProviderChangeNotificationInterface: ChangeNotificationInterface {
     let domain: NSFileProviderDomain
-    private let logger = Logger(
-        subsystem: Logger.subsystem, category: "FileProviderChangeNotificationInterface"
-    )
+    private let logger = NCFPKLogger(category: "FileProviderChangeNotificationInterface")
 
     required init(domain: NSFileProviderDomain) {
         self.domain = domain
@@ -27,9 +24,8 @@ public class FileProviderChangeNotificationInterface: ChangeNotificationInterfac
                 } catch let error {
                     self.logger.error(
                     """
-                    Could not signal enumerator for
-                        \(self.domain.identifier.rawValue, privacy: .public):
-                        \(error.localizedDescription, privacy: .public)
+                    Could not signal enumerator for \(self.domain.identifier.rawValue):
+                        \(error.localizedDescription)
                     """
                     )
                 }

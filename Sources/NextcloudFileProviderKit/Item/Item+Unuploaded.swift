@@ -26,7 +26,7 @@ extension Item {
             Self.logger.error(
                 """
                 Unable to upload modified item that was previously unuploaded.
-                    filename: \(self.filename, privacy: .public)
+                    filename: \(self.filename)
                     either the domain is nil, the provided contents are nil, or both.
                 """
             )
@@ -41,7 +41,7 @@ extension Item {
                 Self.logger.error(
                     """
                     Unable to upload modified item that was previously unuploaded.
-                        filename: \(modifiedItem.filename, privacy: .public)
+                        filename: \(modifiedItem.filename)
                         local url for contents could not be acquired.
                     """
                 )
@@ -98,7 +98,7 @@ extension Item {
                 Self.logger.error(
                     """
                     Unable to find new parent item identifier during unuploaded item modification.
-                        Filename: \(self.filename, privacy: .public)
+                        Filename: \(self.filename)
                     """
                 )
                 return nil

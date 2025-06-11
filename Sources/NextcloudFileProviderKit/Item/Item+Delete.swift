@@ -35,8 +35,7 @@ public extension Item {
         guard ignoredFiles == nil || ignoredFiles?.isExcluded(relativePath) == false else {
             Self.logger.info(
                 """
-                File \(self.filename, privacy: .public) is in the ignore list.
-                    Will delete locally with no remote effect.
+                \(self.filename) is in the ignore list. Will delete locally with no remote effect.
                 """
             )
             dbManager.deleteItemMetadata(ocId: ocId)
@@ -69,10 +68,10 @@ public extension Item {
         guard error == .success else {
             Self.logger.error(
                 """
-                Could not delete item with ocId \(ocId, privacy: .public)...
-                at \(serverFileNameUrl, privacy: .public)...
-                received error: \(error.errorCode, privacy: .public)
-                \(error.errorDescription, privacy: .public)
+                Could not delete item with ocId \(ocId)...
+                    at \(serverFileNameUrl)...
+                    received error: \(error.errorCode)
+                    \(error.errorDescription)
                 """
             )
             return error.fileProviderError(
@@ -81,10 +80,7 @@ public extension Item {
         }
 
         Self.logger.info(
-            """
-            Successfully deleted item with identifier: \(ocId, privacy: .public)...
-            at: \(serverFileNameUrl, privacy: .public)
-            """
+            "Successfully deleted item with identifier: \(ocId)... at: \(serverFileNameUrl)"
         )
 
         guard trashing else {
@@ -125,8 +121,8 @@ public extension Item {
         guard var metadata = dbManager.itemMetadata(ocId: ocId) else {
             Self.logger.warning(
                 """
-                Could not find item metadata for \(self.filename, privacy: .public)
-                    \(self.itemIdentifier.rawValue, privacy: .public)!
+                Could not find item metadata for \(self.filename)
+                    \(self.itemIdentifier.rawValue)!
                     Cannot finish trashing procedure.
                 """
             )

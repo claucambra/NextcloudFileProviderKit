@@ -14,7 +14,6 @@
 
 import FileProvider
 import NextcloudKit
-import OSLog
 
 extension Enumerator {
     func fullRecursiveScan(
@@ -96,7 +95,7 @@ extension Enumerator {
                 ? account.davFilesUrl
                 : directoryMetadata.serverUrl + "/" + directoryMetadata.fileName
 
-        Self.logger.debug("About to read: \(itemServerUrl, privacy: .public)")
+        Self.logger.debug("About to read: \(itemServerUrl)")
 
         let (
             metadatas, newMetadatas, updatedMetadatas, deletedMetadatas, _, readError
@@ -117,8 +116,8 @@ extension Enumerator {
             } else {
                 Self.logger.error(
                     """
-                    Finishing enumeration of changes at \(itemServerUrl, privacy: .public)
-                        with \(readError.errorDescription, privacy: .public)
+                    Finishing enumeration of changes at \(itemServerUrl)
+                        with \(readError.errorDescription)
                     """
                 )
 
@@ -159,8 +158,8 @@ extension Enumerator {
 
         Self.logger.info(
             """
-            Finished reading serverUrl: \(itemServerUrl, privacy: .public)
-            for user: \(account.ncKitAccount, privacy: .public)
+            Finished reading serverUrl: \(itemServerUrl)
+                for user: \(account.ncKitAccount)
             """
         )
 
@@ -169,8 +168,8 @@ extension Enumerator {
         } else {
             Self.logger.warning(
                 """
-                Nil metadatas received in change read at \(itemServerUrl, privacy: .public)
-                for user: \(account.ncKitAccount, privacy: .public)
+                Nil metadatas received in change read at \(itemServerUrl)
+                    for user: \(account.ncKitAccount)
                 """
             )
         }
@@ -180,8 +179,8 @@ extension Enumerator {
         } else {
             Self.logger.warning(
                 """
-                Nil new metadatas received in change read at \(itemServerUrl, privacy: .public)
-                for user: \(account.ncKitAccount, privacy: .public)
+                Nil new metadatas received in change read at \(itemServerUrl)
+                    for user: \(account.ncKitAccount)
                 """
             )
         }
@@ -191,8 +190,8 @@ extension Enumerator {
         } else {
             Self.logger.warning(
                 """
-                Nil updated metadatas received in change read at \(itemServerUrl, privacy: .public)
-                for user: \(account.ncKitAccount, privacy: .public)
+                Nil updated metadatas received in change read at \(itemServerUrl)
+                    for user: \(account.ncKitAccount)
                 """
             )
         }
@@ -202,8 +201,8 @@ extension Enumerator {
         } else {
             Self.logger.warning(
                 """
-                Nil deleted metadatas received in change read at \(itemServerUrl, privacy: .public)
-                for user: \(account.ncKitAccount, privacy: .public)
+                Nil deleted metadatas received in change read at \(itemServerUrl)
+                    for user: \(account.ncKitAccount)
                 """
             )
         }
@@ -221,9 +220,7 @@ extension Enumerator {
             childDirectoriesToScan.append(candidateMetadata)
         }
 
-        Self.logger.debug(
-            "Candidate metadatas for further scan: \(childDirectoriesToScan, privacy: .public)"
-        )
+        Self.logger.debug("Candidate metadatas for further scan: \(childDirectoriesToScan)")
 
         if childDirectoriesToScan.isEmpty {
             return (
@@ -239,8 +236,8 @@ extension Enumerator {
             let childDirectoryUrl = childDirectory.serverUrl + "/" + childDirectory.fileName
             Self.logger.debug(
                 """
-                About to recursively scan: \(childDirectoryUrl, privacy: .public)
-                    with etag: \(childDirectory.etag, privacy: .public)
+                About to recursively scan: \(childDirectoryUrl)
+                    with etag: \(childDirectory.etag)
                 """
             )
             let childScanResult = await scanRecursively(
@@ -307,8 +304,8 @@ extension Enumerator {
     ) {
         Self.logger.debug(
             """
-            Starting async conversion of NKFiles for serverUrl: \(serverUrl, privacy: .public)
-                for user: \(account.ncKitAccount, privacy: .public)
+            Starting async conversion of NKFiles for serverUrl: \(serverUrl)
+                for user: \(account.ncKitAccount)
             """
         )
 
@@ -383,12 +380,12 @@ extension Enumerator {
 
         Self.logger.debug(
             """
-            Starting to read serverUrl: \(serverUrl, privacy: .public)
-                for user: \(ncKitAccount, privacy: .public)
-                at depth \(depth.rawValue, privacy: .public).
-                username: \(account.username, privacy: .public),
+            Starting to read serverUrl: \(serverUrl)
+                for user: \(ncKitAccount)
+                at depth \(depth.rawValue).
+                username: \(account.username),
                 password is empty: \(account.password == "" ? "EMPTY" : "NOT EMPTY"),
-                serverUrl: \(account.serverUrl, privacy: .public)
+                serverUrl: \(account.serverUrl)
             """
         )
 
@@ -425,8 +422,8 @@ extension Enumerator {
         guard error == .success else {
             Self.logger.error(
                 """
-                \(depth.rawValue, privacy: .public) depth read of url \(serverUrl, privacy: .public)
-                did not complete successfully, error: \(error.errorDescription, privacy: .public)
+                \(depth.rawValue) depth read of url \(serverUrl) did not complete successfully.
+                    Error: \(error.errorDescription)
                 """
             )
             return (nil, nil, nil, nil, nil, error)
@@ -434,10 +431,7 @@ extension Enumerator {
 
         guard let data else {
             Self.logger.error(
-                """
-                \(depth.rawValue, privacy: .public) depth read of url \(serverUrl, privacy: .public)
-                    did not return data.
-                """
+                "\(depth.rawValue) depth read of url \(serverUrl) did not return data."
             )
             return (nil, nil, nil, nil, nil, error)
         }
@@ -450,10 +444,7 @@ extension Enumerator {
 
         guard let receivedFile = files.first else {
             Self.logger.error(
-                """
-                Received no items from readFileOrFolder of \(serverUrl, privacy: .public),
-                not much we can do...
-                """
+                "Received no items from readFileOrFolder of \(serverUrl), not much we can do..."
             )
             return (nil, nil, nil, nil, nextPage, error)
         }
@@ -468,8 +459,8 @@ extension Enumerator {
                 Self.logger.debug(
                     """
                     Read item is a file.
-                        Converting NKfile for serverUrl: \(serverUrl, privacy: .public)
-                        for user: \(account.ncKitAccount, privacy: .public)
+                        Converting NKfile for serverUrl: \(serverUrl)
+                        for user: \(account.ncKitAccount)
                     """
                 )
                 var metadata = receivedFile.toItemMetadata()

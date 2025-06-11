@@ -10,7 +10,6 @@ import FileProvider
 import Foundation
 import NextcloudCapabilitiesKit
 import NextcloudKit
-import OSLog
 
 public let NotifyPushAuthenticatedNotificationName = Notification.Name("NotifyPushAuthenticated")
 
@@ -27,7 +26,7 @@ public class RemoteChangeObserver: NSObject, NextcloudKitDelegate, URLSessionWeb
     public var webSocketAuthenticationFailLimit = 3
     public var webSocketTaskActive: Bool { webSocketTask != nil }
 
-    private let logger = Logger(subsystem: Logger.subsystem, category: "changeobserver")
+    private let logger = NCFPKLogger(category: "changeobserver")
 
     private var webSocketUrlSession: URLSession?
     private var webSocketTask: URLSessionWebSocketTask?
@@ -114,8 +113,8 @@ public class RemoteChangeObserver: NSObject, NextcloudKitDelegate, URLSessionWeb
             logger.error(
                 """
                 Exceeded authentication failures for notify push websocket
-                \(self.accountId, privacy: .public),
-                will poll instead.
+                    \(self.accountId),
+                    will poll instead.
                 """
             )
             startPollingTimer()
@@ -156,9 +155,9 @@ public class RemoteChangeObserver: NSObject, NextcloudKitDelegate, URLSessionWeb
         guard error == .success else {
             self.logger.error(
                 """
-                Could not get \(self.accountId, privacy: .public) capabilities:
-                \(error.errorCode, privacy: .public)
-                \(error.errorDescription, privacy: .public)
+                Could not get \(self.accountId) capabilities:
+                    \(error.errorCode)
+                    \(error.errorDescription)
                 """
             )
             reconnectWebSocket()
@@ -168,21 +167,13 @@ public class RemoteChangeObserver: NSObject, NextcloudKitDelegate, URLSessionWeb
         guard let capabilities,
               let websocketEndpoint = capabilities.notifyPush?.endpoints?.websocket
         else {
-            logger.error(
-                """
-                Could not get notifyPush websocket \(self.accountId, privacy: .public), polling.
-                """
-            )
+            logger.error("Could not get notifyPush websocket \(self.accountId), polling.")
             startPollingTimer()
             return
         }
 
         guard let websocketEndpointUrl = URL(string: websocketEndpoint) else {
-            logger.error(
-                """
-                Received notifyPush endpoint is invalid: \(websocketEndpoint, privacy: .public)
-                """
-            )
+            logger.error("Received notifyPush endpoint is invalid: \(websocketEndpoint)")
             return
         }
         webSocketOperationQueue.isSuspended = false
@@ -193,11 +184,7 @@ public class RemoteChangeObserver: NSObject, NextcloudKitDelegate, URLSessionWeb
         )
         webSocketTask = webSocketUrlSession?.webSocketTask(with: websocketEndpointUrl)
         webSocketTask?.resume()
-        logger.info(
-            """
-            Successfully configured push notifications for \(self.accountId, privacy: .public)
-            """
-        )
+        logger.info("Successfully configured push notifications for \(self.accountId)")
     }
 
     public func authenticationChallenge(
@@ -206,7 +193,7 @@ public class RemoteChangeObserver: NSObject, NextcloudKitDelegate, URLSessionWeb
         completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void
     ) {
         let authMethod = challenge.protectionSpace.authenticationMethod
-        logger.debug("Received auth challenge with method: \(authMethod, privacy: .public)")
+        logger.debug("Received auth challenge with method: \(authMethod)")
         if authMethod == NSURLAuthenticationMethodHTTPBasic {
             let credential = URLCredential(
                 user: account.username,
@@ -224,7 +211,7 @@ public class RemoteChangeObserver: NSObject, NextcloudKitDelegate, URLSessionWeb
             let credential = URLCredential(trust: serverTrust)
             completionHandler(.useCredential, credential)
         } else {
-            logger.warning("Unhandled auth method: \(authMethod, privacy: .public)")
+            logger.warning("Unhandled auth method: \(authMethod)")
             // Handle other authentication methods or cancel the challenge
             completionHandler(.performDefaultHandling, nil)
         }
@@ -235,7 +222,7 @@ public class RemoteChangeObserver: NSObject, NextcloudKitDelegate, URLSessionWeb
         webSocketTask: URLSessionWebSocketTask,
         didOpenWithProtocol protocol: String?
     ) {
-        logger.debug("Websocket connected \(self.accountId, privacy: .public) sending auth details")
+        logger.debug("Websocket connected \(self.accountId) sending auth details")
         Task { await authenticateWebSocket() }
     }
 
@@ -245,11 +232,11 @@ public class RemoteChangeObserver: NSObject, NextcloudKitDelegate, URLSessionWeb
         didCloseWith closeCode: URLSessionWebSocketTask.CloseCode,
         reason: Data?
     ) {
-        logger.debug("Socket connection closed for \(self.accountId, privacy: .public).")
+        logger.debug("Socket connection closed for \(self.accountId).")
         if let reason = reason {
-            logger.debug("Reason: \(String(data: reason, encoding: .utf8) ?? "", privacy: .public)")
+            logger.debug("Reason: \(String(data: reason, encoding: .utf8) ?? "")")
         }
-        logger.debug("Retrying websocket connection for \(self.accountId, privacy: .public).")
+        logger.debug("Retrying websocket connection for \(self.accountId).")
         reconnectWebSocket()
     }
 
@@ -260,8 +247,7 @@ public class RemoteChangeObserver: NSObject, NextcloudKitDelegate, URLSessionWeb
         } catch let error {
             logger.error(
                 """
-                Error authenticating websocket for \(self.accountId, privacy: .public):
-                \(error.localizedDescription, privacy: .public)
+                Error authenticating websocket for \(self.accountId): \(error.localizedDescription)
                 """
             )
         }
@@ -281,8 +267,8 @@ public class RemoteChangeObserver: NSObject, NextcloudKitDelegate, URLSessionWeb
             } catch let error {
                 self.logger.error(
                     """
-                    Could not sleep websocket ping for \(self.accountId, privacy: .public):
-                    \(error.localizedDescription, privacy: .public)
+                    Could not sleep websocket ping for \(self.accountId):
+                        \(error.localizedDescription)
                     """
                 )
             }
@@ -293,18 +279,14 @@ public class RemoteChangeObserver: NSObject, NextcloudKitDelegate, URLSessionWeb
 
     private func pingWebSocket() {  // Keep the socket connection alive
         guard networkReachability != .notReachable else {
-            logger.error("Not pinging \(self.accountId, privacy: .public), network is unreachable")
+            logger.error("Not pinging \(self.accountId), network is unreachable")
             return
         }
 
         webSocketTask?.sendPing { [weak self] error in
             guard let self else { return }
             guard error == nil else {
-                self.logger.warning(
-                    """
-                    Websocket ping failed: \(error?.localizedDescription ?? "", privacy: .public)
-                    """
-                )
+                self.logger.warning("Websocket ping failed: \(error?.localizedDescription ?? "")")
                 self.webSocketPingFailCount += 1
                 if self.webSocketPingFailCount > self.webSocketPingFailLimit {
                     Task.detached(priority: .medium) { self.reconnectWebSocket() }
@@ -322,7 +304,7 @@ public class RemoteChangeObserver: NSObject, NextcloudKitDelegate, URLSessionWeb
         webSocketTask?.receive { result in
             switch result {
             case .failure:
-                self.logger.debug("Failed to read websocket \(self.accountId, privacy: .public)")
+                self.logger.debug("Failed to read websocket \(self.accountId)")
                 // Do not reconnect here, delegate methods will handle reconnecting
             case .success(let message):
                 switch message {
@@ -340,43 +322,33 @@ public class RemoteChangeObserver: NSObject, NextcloudKitDelegate, URLSessionWeb
 
     private func processWebsocket(data: Data) {
         guard let string = String(data: data, encoding: .utf8) else {
-            logger.error("Could parse websocket data for id: \(self.accountId, privacy: .public)")
+            logger.error("Could parse websocket data for id: \(self.accountId)")
             return
         }
         processWebsocket(string: string)
     }
 
     private func processWebsocket(string: String) {
-        logger.debug("Received websocket string: \(string, privacy: .public)")
+        logger.debug("Received websocket string: \(string)")
         if string == "notify_file" {
-            logger.debug("Received file notification for \(self.accountId, privacy: .public)")
+            logger.debug("Received file notification for \(self.accountId)")
             changeNotificationInterface.notifyChange()
         } else if string == "notify_activity" {
-            logger.debug("Ignoring activity notification: \(self.accountId, privacy: .public)")
+            logger.debug("Ignoring activity notification: \(self.accountId)")
         } else if string == "notify_notification" {
-            logger.debug("Ignoring notification: \(self.accountId, privacy: .public)")
+            logger.debug("Ignoring notification: \(self.accountId)")
         } else if string == "authenticated" {
-            logger.debug("Correctly authed websocket \(self.accountId, privacy: .public), pinging")
+            logger.debug("Correctly authed websocket \(self.accountId), pinging")
             NotificationCenter.default.post(
                 name: NotifyPushAuthenticatedNotificationName, object: self
             )
             startNewWebSocketPingTask()
         } else if string == "err: Invalid credentials" {
-            logger.debug(
-                """
-                Invalid creds for websocket for \(self.accountId, privacy: .public),
-                reattempting auth.
-                """
-            )
+            logger.debug("Invalid creds for websocket for \(self.accountId), reattempting auth.")
             webSocketAuthenticationFailCount += 1
             reconnectWebSocket()
         } else {
-            logger.warning(
-                """
-                Received unknown string from websocket \(self.accountId, privacy: .public):
-                \(string, privacy: .public)
-                """
-            )
+            logger.warning("Received unknown string from websocket \(self.accountId): \(string)")
         }
     }
 

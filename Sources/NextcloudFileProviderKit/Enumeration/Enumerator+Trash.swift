@@ -78,8 +78,8 @@ extension Enumerator {
 
             Self.logger.debug(
                 """
-                Will enumerate changed trashed item with ocId: \(metadata.ocId, privacy: .public)
-                and name: \(metadata.fileName, privacy: .public)
+                Will enumerate changed trashed item with ocId: \(metadata.ocId)
+                    and name: \(metadata.fileName)
                 """
             )
         }
@@ -92,10 +92,7 @@ extension Enumerator {
                 dbManager.deleteItemMetadata(ocId: itemIdentifier.rawValue)
             }
             Self.logger.debug(
-                """
-                Will enumerate deleted trashed items:
-                \(deletedTrashedItemsIdentifiers, privacy: .public)
-                """
+                "Will enumerate deleted trashed items: \(deletedTrashedItemsIdentifiers)"
             )
             observer.didDeleteItems(withIdentifiers: deletedTrashedItemsIdentifiers)
         }

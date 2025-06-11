@@ -21,8 +21,8 @@ extension Item {
         let filename = itemTemplate.filename
         Self.logger.info(
             """
-            File \(filename, privacy: .public) is in the ignore list.
-                \(parentItemRemotePath + "/" + filename, privacy: .public)
+            File \(filename) is in the ignore list.
+                \(parentItemRemotePath + "/" + filename)
                 Will not propagate creation to server.
             """
         )

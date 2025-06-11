@@ -6,15 +6,12 @@
 //
 
 import Foundation
-import OSLog
 
 extension Array<SendableItemMetadata> {
     func toFileProviderItems(
         account: Account, remoteInterface: RemoteInterface, dbManager: FilesDatabaseManager
     ) async throws -> [Item] {
-        let logger = Logger(
-            subsystem: Logger.subsystem, category: "itemMetadataToFileProviderItems"
-        )
+        let logger = NCFPKLogger(category: "itemMetadataToFileProviderItems")
         let remoteSupportsTrash = await remoteInterface.supportsTrash(account: account)
 
         return try await concurrentChunkedCompactMap { itemMetadata in
@@ -22,8 +19,7 @@ extension Array<SendableItemMetadata> {
                 logger.warning(
                     """
                     Skipping encrypted metadata in enumeration:
-                        ocId: \(itemMetadata.ocId, privacy: .public)
-                        fileName: \(itemMetadata.fileName, privacy: .public)
+                        ocId: \(itemMetadata.ocId) fileName: \(itemMetadata.fileName)
                     """
                 )
                 return nil
@@ -33,8 +29,7 @@ extension Array<SendableItemMetadata> {
                 logger.warning(
                     """
                     Skipping remote lock file item metadata in enumeration:
-                        ocId: \(itemMetadata.ocId, privacy: .public)
-                        fileName: \(itemMetadata.fileName, privacy: .public)
+                        ocId: \(itemMetadata.ocId) fileName: \(itemMetadata.fileName)
                     """
                 )
                 return nil
@@ -46,8 +41,7 @@ extension Array<SendableItemMetadata> {
                 logger.error(
                     """
                     Could not get valid parentItemIdentifier for item with ocId:
-                        \(itemMetadata.ocId, privacy: .public)
-                        and name: \(itemMetadata.fileName, privacy: .public)
+                        \(itemMetadata.ocId) and name: \(itemMetadata.fileName)
                     """
                 )
                 let targetUrl = itemMetadata.serverUrl
@@ -63,8 +57,8 @@ extension Array<SendableItemMetadata> {
             )
             logger.debug(
                 """
-                Will enumerate item with ocId: \(itemMetadata.ocId, privacy: .public)
-                    and name: \(itemMetadata.fileName, privacy: .public)
+                Will enumerate item with ocId: \(itemMetadata.ocId)
+                    and name: \(itemMetadata.fileName)
                 """
             )
 

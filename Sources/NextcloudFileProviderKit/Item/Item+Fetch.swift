@@ -39,10 +39,10 @@ public extension Item {
                 Self.logger.error(
                     """
                     Could not enumerate directory contents for
-                    \(self.metadata.fileName, privacy: .public)
-                    at \(remoteDirectoryPath, privacy: .public)
-                    error: \(readError.errorCode, privacy: .public)
-                    \(readError.errorDescription, privacy: .public)
+                        \(self.metadata.fileName)
+                        at \(remoteDirectoryPath)
+                        error: \(readError.errorCode)
+                        \(readError.errorDescription)
                     """
                 )
                 throw readError.fileProviderError(
@@ -54,8 +54,7 @@ public extension Item {
                 Self.logger.error(
                     """
                     Could not fetch directory contents for
-                    \(self.metadata.fileName, privacy: .public)
-                    at \(remoteDirectoryPath, privacy: .public), received nil metadatas
+                        \(self.metadata.fileName) at \(remoteDirectoryPath), received nil metadatas
                     """
                 )
                 throw NSFileProviderError(.cannotSynchronize)
@@ -99,10 +98,10 @@ public extension Item {
                     guard error == .success else {
                         Self.logger.error(
                         """
-                        Could not acquire contents of item: \(metadata.fileName, privacy: .public)
-                        at \(remotePath, privacy: .public)
-                        error: \(error.errorCode, privacy: .public)
-                        \(error.errorDescription, privacy: .public)
+                        Could not acquire contents of item: \(metadata.fileName)
+                            at \(remotePath)
+                            error: \(error.errorCode)
+                            \(error.errorDescription)
                         """
                         )
                         metadata.status = Status.downloadError.rawValue
@@ -139,7 +138,7 @@ public extension Item {
         guard metadata.classFile != "lock", !isLockFileName(filename) else {
             Self.logger.info(
                 """
-                System requested fetch of lock file \(self.filename, privacy: .public)
+                System requested fetch of lock file \(self.filename)
                     will just provide local contents URL if possible.
                 """
             )
@@ -157,18 +156,15 @@ public extension Item {
         let serverUrlFileName = metadata.serverUrl + "/" + metadata.fileName
 
         Self.logger.debug(
-            """
-            Fetching item with name \(self.metadata.fileName, privacy: .public)
-                at URL: \(serverUrlFileName, privacy: .public)
-            """
+            "Fetching item with name \(self.metadata.fileName) at URL: \(serverUrlFileName)"
         )
 
         let localPath = FileManager.default.temporaryDirectory.appendingPathComponent(metadata.ocId)
         guard var updatedMetadata = dbManager.setStatusForItemMetadata(metadata, status: .downloading) else {
             Self.logger.error(
                 """
-                Could not acquire updated metadata of item \(ocId, privacy: .public),
-                unable to update item status to downloading
+                Could not acquire updated metadata of item \(ocId),
+                    unable to update item status to downloading
                 """
             )
             return (
@@ -182,9 +178,9 @@ public extension Item {
         if isDirectory {
             Self.logger.debug(
                 """
-                Item with identifier: \(ocId, privacy: .public)
-                and filename: \(updatedMetadata.fileName, privacy: .public)
-                is a directory, creating dir locally and fetching its contents
+                Item with identifier: \(ocId)
+                    and filename: \(updatedMetadata.fileName)
+                    is a directory, creating dir locally and fetching its contents
                 """
             )
 
@@ -197,10 +193,10 @@ public extension Item {
             } catch let error {
                 Self.logger.error(
                     """
-                    Could not create directory for item with identifier: \(ocId, privacy: .public)
-                    and fileName: \(updatedMetadata.fileName, privacy: .public)
-                    at \(localPath, privacy: .public)
-                    error: \(error.localizedDescription, privacy: .public)
+                    Could not create directory for item with identifier: \(ocId)
+                        and fileName: \(updatedMetadata.fileName)
+                        at \(localPath)
+                        error: \(error.localizedDescription)
                     """
                 )
 
@@ -221,10 +217,10 @@ public extension Item {
             } catch let error {
                 Self.logger.error(
                     """
-                    Could not fetch directory contents for \(ocId, privacy: .public)
-                    and fileName: \(updatedMetadata.fileName, privacy: .public)
-                    at \(serverUrlFileName, privacy: .public)
-                    error: \(error.localizedDescription, privacy: .public)
+                    Could not fetch directory contents for \(ocId)
+                        and fileName: \(updatedMetadata.fileName)
+                        at \(serverUrlFileName)
+                        error: \(error.localizedDescription)
                     """
                 )
 
@@ -248,11 +244,11 @@ public extension Item {
             if error != .success {
                 Self.logger.error(
                     """
-                    Could not acquire contents of item with identifier: \(ocId, privacy: .public)
-                        and fileName: \(updatedMetadata.fileName, privacy: .public)
-                        at \(serverUrlFileName, privacy: .public)
-                        error: \(error.errorCode, privacy: .public)
-                        \(error.errorDescription, privacy: .public)
+                    Could not acquire contents of item with identifier: \(ocId)
+                        and fileName: \(updatedMetadata.fileName)
+                        at \(serverUrlFileName)
+                        error: \(error.errorCode)
+                        \(error.errorDescription)
                     """
                 )
 
@@ -267,8 +263,8 @@ public extension Item {
 
         Self.logger.debug(
             """
-            Acquired contents of item with identifier: \(ocId, privacy: .public)
-            and filename: \(updatedMetadata.fileName, privacy: .public)
+            Acquired contents of item with identifier: \(ocId)
+                and filename: \(updatedMetadata.fileName)
             """
         )
 
@@ -287,11 +283,7 @@ public extension Item {
             remoteInterface: remoteInterface,
             account: account
         ) else {
-            Self.logger.error(
-                """
-                Could not find parent item id for file \(self.metadata.fileName, privacy: .public)
-                """
-            )
+            Self.logger.error("Could not find parent item id for file \(self.metadata.fileName)")
             return (
                 nil,
                 nil,
@@ -317,8 +309,8 @@ public extension Item {
         guard let thumbnailUrl = metadata.thumbnailUrl(size: size) else {
             Self.logger.debug(
                 """
-                Unknown thumbnail URL for: \(self.itemIdentifier.rawValue, privacy: .public)
-                fileName: \(self.filename, privacy: .public)
+                Unknown thumbnail URL for: \(self.itemIdentifier.rawValue)
+                    fileName: \(self.filename)
                 """
             )
             return (
@@ -327,12 +319,7 @@ public extension Item {
             )
         }
 
-        Self.logger.debug(
-            """
-            Fetching thumbnail for: \(self.filename, privacy: .public)
-            at (\(thumbnailUrl, privacy: .public))
-            """
-        )
+        Self.logger.debug("Fetching thumbnail for: \(self.filename) at \(thumbnailUrl)")
 
         let (_, data, error) = await remoteInterface.downloadThumbnail(
             url: thumbnailUrl, account: account, options: .init(), taskHandler: { task in
@@ -350,11 +337,11 @@ public extension Item {
             Self.logger.error(
                 """
                 Could not acquire thumbnail for item with identifier: 
-                \(self.itemIdentifier.rawValue, privacy: .public)
-                and fileName: \(self.filename, privacy: .public)
-                at \(thumbnailUrl, privacy: .public)
-                error: \(error.errorCode, privacy: .public)
-                \(error.errorDescription, privacy: .public)
+                    \(self.itemIdentifier.rawValue)
+                    and fileName: \(self.filename)
+                    at \(thumbnailUrl)
+                    error: \(error.errorCode)
+                    \(error.errorDescription)
                 """
             )
         }

@@ -15,7 +15,6 @@
 import FileProvider
 import NextcloudKit
 import UniformTypeIdentifiers
-import OSLog
 
 public class Item: NSObject, NSFileProviderItem {
     public enum FileProviderItemTransferError: Error {
@@ -301,7 +300,7 @@ public class Item: NSObject, NSFileProviderItem {
         )
     }
 
-    static let logger = Logger(subsystem: Logger.subsystem, category: "item")
+    static let logger = NCFPKLogger(category: "item")
 
     public required init(
         metadata: SendableItemMetadata,
@@ -378,8 +377,7 @@ public class Item: NSObject, NSFileProviderItem {
             Self.logger.error(
                 """
                 Unable to get local URL for item contents.
-                    filename: \(self.filename, privacy: .public)
-                    Item is not materialised.
+                    filename: \(self.filename) Item is not materialised.
                 """
             )
             return nil
@@ -391,8 +389,7 @@ public class Item: NSObject, NSFileProviderItem {
             Self.logger.error(
                 """
                 Unable to get manager or user visible url for item.
-                    filename: \(self.filename, privacy: .public)
-                    Cannot provide local URL for contents.
+                    filename: \(self.filename) Cannot provide local URL for contents.
                 """
             )
             return nil
@@ -411,8 +408,8 @@ public class Item: NSObject, NSFileProviderItem {
         } catch let error {
             Self.logger.error(
                 """
-                Unable to write file item contents \(self.filename, privacy: .public) to temp url.
-                    error: \(error.localizedDescription, privacy: .public)
+                Unable to write file item contents \(self.filename) to temp url.
+                    error: \(error.localizedDescription)
                     Cannot provide local URL for contents.
                 """
             )

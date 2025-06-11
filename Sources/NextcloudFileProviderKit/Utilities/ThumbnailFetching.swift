@@ -8,9 +8,8 @@
 import FileProvider
 import Foundation
 import NextcloudKit
-import OSLog
 
-fileprivate let logger = Logger(subsystem: Logger.subsystem, category: "thumbnails")
+fileprivate let logger = NCFPKLogger(category: "thumbnails")
 
 public func fetchThumbnails(
     for itemIdentifiers: [NSFileProviderItemIdentifier],
@@ -45,8 +44,8 @@ public func fetchThumbnails(
             ) else {
                 logger.error(
                     """
-                    Could not find item with identifier: \(itemIdentifier.rawValue, privacy: .public),
-                    unable to download thumbnail!
+                    Could not find item with identifier: \(itemIdentifier.rawValue),
+                        unable to download thumbnail!
                     """
                 )
                 perThumbnailCompletionHandler(
